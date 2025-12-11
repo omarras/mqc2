@@ -1,0 +1,56 @@
+
+services:
+  ph-pse-mqc_frontend:
+    container_name: ph-pse-mqc_container_frontend_prod
+    image: 148588257312.dkr.ecr.eu-central-1.amazonaws.com/ph-pse-docker-repo:ph-pse-mqc-prod-frontend
+    env_file:
+      - .env
+    build:
+      context: app
+      dockerfile: prod.Dockerfile
+      args:
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL}
+        - VITE_LIBRETRANSLATE_ENDPOINT=${VITE_LIBRETRANSLATE_ENDPOINT}
+        - VITE_SSE_SINGLE=${VITE_SSE_SINGLE}
+        - VITE_SSE_BULK=${VITE_SSE_BULK}
+    restart: always
+    ports:
+      - 3008:80
+    networks:
+      - ph-pse-mqc_network_prod
+
+  ph-pse-mqc_backend:
+    container_name: ph-pse-mqc_container_backend_prod
+    image: 148588257312.dkr.ecr.eu-central-1.amazonaws.com/ph-pse-docker-repo:ph-pse-mqc-prod-backend
+    env_file:
+      - .env
+    build:
+      context: ./server
+      dockerfile: prod.Dockerfile
+    restart: always
+    ports:
+      - 3108:5177
+    networks:
+      - ph-pse-mqc_network_prod
+    depends_on:
+      - libretranslate
+
+  libretranslate:
+    container_name: ph-pse-mqc_libretranslate_prod
+    image: libretranslate/libretranslate:latest
+    restart: always
+    ports:
+      - 5050:5000
+    networks:
+      - ph-pse-mqc_network_prod
+    environment:
+      - LT_LOAD_ONLY=en,nl,de,fr,es,it,pt,pl,cs,sv,da,fi,ru,zh,ja,ko,sk
+      - LT_SUGGESTIONS=false
+      - LT_DISABLE_WEB_UI=false
+    healthcheck:
+      disable: true
+
+
+networks:
+  ph-pse-mqc_network_prod:
+    external: false

@@ -1,0 +1,56 @@
+services:
+  ph-pse-mqc_backend:
+    container_name: ph-pse-mqc_container_backend_dev
+    image: ph-pse-mqc-dev-backend:latest
+    env_file:
+      - .env
+    build:
+      context: ./server
+      dockerfile: dev.Dockerfile
+    ports:
+      - "5177:5177"
+    environment:
+      NODE_ENV: development
+    volumes:
+      - ./server/src:/app/src
+      - ph-pse-mqc_screenshots:/app/tmp
+    restart: always
+    depends_on:
+      - mongo
+    networks:
+      - ph-pse-com-replatforming_network_dev
+
+  mongo:
+    image: mongo:latest
+    container_name: mqc2-mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: mqc2
+    volumes:
+      - ph-pse-mqc_data:/data/db
+    networks:
+      - ph-pse-com-replatforming_network_dev
+
+  mongo-express:
+    image: mongo-express:latest
+    container_name: mqc2-mongo-express
+    restart: always
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_PORT: 27017
+    depends_on:
+      - mongo
+    networks:
+      - ph-pse-com-replatforming_network_dev
+
+networks:
+  ph-pse-com-replatforming_network_dev:
+    external: false
+
+volumes:
+  ph-pse-mqc_data:
+  ph-pse-mqc_screenshots:
