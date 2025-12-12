@@ -2,14 +2,19 @@
 
 import { Run } from "../models/Run.js";
 import { Scan } from "../models/Scan.js";
-import { getLatestScansForRun } from "./scanLatest.service.js";
+import { normalizeMany } from "../utils/scanNormalizer.js";
 import { fastQueue, slowQueue } from "./scanQueue.service.js";
 import { enqueueScan } from "./enqueueScan.service.js";
 import { sseManager } from "./sse.service.js";
-import { computeLatestCounters, isRunFullyComplete } from "./scanLatest.service.js";
+import {
+    computeLatestCounters,
+    getLatestScansForRun,
+    isRunFullyComplete
+} from "./scanLatest.service.js";
+import { runQueue } from "./runQueue.service.js";
 
 /**
- * Create a new run.
+ * Create a run with default counters.
  */
 export async function createRun(type, runName, runNameAuto = null) {
     return Run.create({
@@ -19,12 +24,13 @@ export async function createRun(type, runName, runNameAuto = null) {
         status: "pending",
         totalScans: 0,
         completedScans: 0,
-        failedScans: 0
+        failedScans: 0,
+        createdAt: new Date()
     });
 }
 
 /**
- * Add scans to a Run.
+ * Append scans to a run.
  */
 export async function addScansToRun(runId, scanIds) {
     return Run.findByIdAndUpdate(
@@ -35,7 +41,7 @@ export async function addScansToRun(runId, scanIds) {
 }
 
 /**
- * Updated: returns run + LATEST scans ONLY.
+ * Run + latest scans only.
  */
 export async function getRunWithLatestScans(id) {
     const run = await Run.findById(id).lean();
@@ -49,30 +55,32 @@ export async function getRunWithLatestScans(id) {
     };
 }
 
-/**
- * For debugging: all scans (full history).
- */
 export async function getRunWithAllScans(id) {
     const run = await Run.findById(id).lean();
     if (!run) return null;
 
-    const scans = await Scan.find({ runId: id });
-    return { ...run, scans };
+    // Use the latest normalized snapshots instead of raw Scan docs
+    const latestMap = await getLatestScansForRun(id);
+    // latestMap is a Map<scanId, snapshot>
+
+    const scans = Array.from(latestMap.values()).map(snap => ({
+        ...snap,
+        // Frontend expects _id, snapshots use scanId
+        _id: snap._id || snap.scanId
+    }));
+
+    return {
+        ...run,
+        scans
+    };
 }
 
-/**
- * List runs (unchanged).
- */
 export async function listRuns() {
     return Run.find().sort({ createdAt: -1 });
 }
 
-/**
- * Sets the baseline total (unchanged).
- */
 export async function setTotals(runId, count, options = {}) {
     const run = await Run.findById(runId);
-
     if (!run) return null;
 
     if (options.append) {
@@ -92,43 +100,45 @@ export async function markRunning(runId) {
     });
 }
 
+/**
+ * Central 2-phase coordinator.
+ * Ensures FULL determinism and correct SSE finalization.
+ */
 export async function runCoordinator(runId) {
-
-    // ---------------------------------------------------------
-    // 1. WAIT FOR PHASE 1 (fastQueue) TO FINISH
-    // ---------------------------------------------------------
+    // -----------------------------
+    // PHASE 1 — Wait for fastQueue
+    // -----------------------------
     await fastQueue.onIdle();
 
-    // Ensure all scans have pageDataCheck
-    const scans = await Scan.find({ runId, deleted: false });
-    const pendingPD = scans.filter(s => !s.metadata?.pageDataCheck);
+    const scans = await Scan.find({ runId, deleted: { $ne: true } });
 
-    if (pendingPD.length > 0) {
-        // Should never happen, but safe guard:
-        console.error("[runCoordinator] Some scans missing pageDataCheck");
+    // Validate pageDataCheck existence
+    const missingPD = scans.filter(s => !s.metadata?.pageDataCheck);
+    if (missingPD.length > 0) {
+        console.error(`[runCoordinator] Missing pageDataCheck for ${missingPD.length} scans`);
     }
 
-    // ---------------------------------------------------------
-    // 2. ENQUEUE PHASE 2 for scans that shouldContinue === true
-    // ---------------------------------------------------------
-    const validScans = scans.filter(s => {
+    // --------------------------------------
+    // PHASE 2 — enqueue only valid scans
+    // --------------------------------------
+    const continueScans = scans.filter(s => {
         const pd = s.metadata?.pageDataCheck;
-        return pd && pd.shouldContinue !== false; // avoid undefined safety
+        return pd && pd.shouldContinue !== false;
     });
 
-    for (const scan of validScans) {
-        await enqueueScan(scan._id); // Goes to slowQueue
+    for (const scan of continueScans) {
+        await enqueueScan(scan._id);
     }
 
-    // ---------------------------------------------------------
-    // 3. WAIT FOR PHASE 2 (slowQueue) TO FINISH
-    // ---------------------------------------------------------
+    // --------------------------------------
+    // PHASE 2 — wait for slowQueue
+    // --------------------------------------
     await slowQueue.onIdle();
 
-    // ---------------------------------------------------------
-    // 4. EVALUATE RUN COMPLETION
-    // ---------------------------------------------------------
-    const { completed, failed, total } = await computeLatestCounters(runId);
+    // --------------------------------------
+    // Final evaluation
+    // --------------------------------------
+    const { completed, failed } = await computeLatestCounters(runId);
 
     await Run.findByIdAndUpdate(runId, {
         completedScans: completed,
@@ -141,10 +151,34 @@ export async function runCoordinator(runId) {
             completedAt: new Date()
         });
 
-        // Final SSE
         sseManager.broadcast(runId, {
             event: "done",
             runId
         });
+    }
+}
+
+export async function recoverRunningRuns() {
+    // Find runs that were in progress when backend shut down
+    const running = await Run.find({ status: "running" }).lean();
+
+    for (const run of running) {
+        const { completed, failed, total } = await computeLatestCounters(run._id);
+
+        // If still incomplete, restart coordinator
+        if (completed + failed < total) {
+            console.log(`[R1] Resuming run ${run._id}`);
+            runQueue.add(async () => {
+                await runCoordinator(run._id);
+            });
+        } else {
+            // Mark completed if actually complete
+            await Run.findByIdAndUpdate(run._id, {
+                status: "completed",
+                completedScans: completed,
+                failedScans: failed,
+                completedAt: new Date()
+            });
+        }
     }
 }

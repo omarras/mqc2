@@ -5,21 +5,20 @@ import { Run } from "../models/Run.js";
 import { enqueueScan } from "./enqueueScan.service.js";
 import {
     computeLatestCounters,
-    getLatestScansForRun,
     isRunFullyComplete
 } from "./scanLatest.service.js";
 
 /**
- * Create a new scan for a run (used for original runs, rescans, reruns).
+ * Create a new scan entry for any run: single, bulk, fetch, rescan, rerun.
  */
 export async function createScan({
-                                     runId,
-                                     urlOld,
-                                     urlNew,
-                                     metadata = {},
-                                     checkConfig = {},
-                                     parentScanId = null
-                                 }) {
+    runId,
+    urlOld,
+    urlNew,
+    metadata = {},
+    checkConfig = {},
+    parentScanId = null
+}) {
     const scan = await Scan.create({
         runId,
         urlOld,
@@ -27,10 +26,10 @@ export async function createScan({
         metadata,
         checkConfig,
         parentScanId,
-        status: "pending"
+        status: "pending",
+        createdAt: new Date()
     });
 
-    // Add to run
     await Run.findByIdAndUpdate(runId, {
         $push: { scans: scan._id }
     });
@@ -39,16 +38,16 @@ export async function createScan({
 }
 
 /**
- * Create rescans for specific scan IDs.
+ * Create rescans: parentScanId = original scan.
  */
 export async function createRescansForScanIds(runId, scanIds) {
-    const existingScans = await Scan.find({ _id: { $in: scanIds } });
+    const existing = await Scan.find({ _id: { $in: scanIds } });
 
-    if (existingScans.length !== scanIds.length) {
+    if (existing.length !== scanIds.length) {
         throw new Error("Some scans not found for rescan.");
     }
 
-    // Reset run counters and reopen it
+    // Reset run
     await Run.findByIdAndUpdate(runId, {
         status: "running",
         completedScans: 0,
@@ -56,9 +55,9 @@ export async function createRescansForScanIds(runId, scanIds) {
         completedAt: null
     });
 
-    const newScans = [];
+    const created = [];
 
-    for (const oldScan of existingScans) {
+    for (const oldScan of existing) {
         const newScan = await createScan({
             runId,
             urlOld: oldScan.urlOld,
@@ -69,19 +68,18 @@ export async function createRescansForScanIds(runId, scanIds) {
         });
 
         await enqueueScan(newScan._id);
-        newScans.push(newScan);
+        created.push(newScan);
     }
 
-    return newScans;
+    return created;
 }
 
 /**
- * Create a rerun: a new scan for each original URL pair (parentScanId = null).
+ * Create reruns: parentScanId = null (fresh scans).
  */
 export async function createRerunScans(runId) {
     const originals = await Scan.find({ runId, parentScanId: null });
 
-    // Reset run counters and reopen the run
     await Run.findByIdAndUpdate(runId, {
         status: "running",
         completedScans: 0,
@@ -113,12 +111,13 @@ export async function createRerunScans(runId) {
  */
 export async function markScanRunning(scanId) {
     await Scan.findByIdAndUpdate(scanId, {
-        status: "running"
+        status: "running",
+        startedAt: new Date()
     });
 }
 
 /**
- * Mark scan as completed and update run counters accordingly.
+ * Mark scan as completed and update counters.
  */
 export async function markScanCompleted(scanId) {
     const scan = await Scan.findById(scanId);
@@ -128,7 +127,6 @@ export async function markScanCompleted(scanId) {
     scan.completedAt = new Date();
     await scan.save();
 
-    // Recompute run counters
     const { completed, failed } = await computeLatestCounters(scan.runId);
 
     await Run.findByIdAndUpdate(scan.runId, {
@@ -136,7 +134,6 @@ export async function markScanCompleted(scanId) {
         failedScans: failed
     });
 
-    // Evaluate run completion
     if (await isRunFullyComplete(scan.runId)) {
         await Run.findByIdAndUpdate(scan.runId, {
             status: "completed",
@@ -146,18 +143,17 @@ export async function markScanCompleted(scanId) {
 }
 
 /**
- * Mark scan as failed and update run counters accordingly.
+ * Mark scan as failed.
  */
 export async function markScanFailed(scanId, errorMessage) {
     const scan = await Scan.findById(scanId);
     if (!scan) return;
 
     scan.status = "failed";
-    scan.error = errorMessage;
+    scan.error = errorMessage || "Unknown error";
     scan.completedAt = new Date();
     await scan.save();
 
-    // Recompute run counters
     const { completed, failed } = await computeLatestCounters(scan.runId);
 
     await Run.findByIdAndUpdate(scan.runId, {
@@ -165,7 +161,6 @@ export async function markScanFailed(scanId, errorMessage) {
         failedScans: failed
     });
 
-    // Evaluate run completion
     if (await isRunFullyComplete(scan.runId)) {
         await Run.findByIdAndUpdate(scan.runId, {
             status: "completed",
@@ -174,6 +169,9 @@ export async function markScanFailed(scanId, errorMessage) {
     }
 }
 
+/**
+ * Saves full scan results (row-final payload).
+ */
 export async function saveScanResults(scanId, results) {
     const scan = await Scan.findById(scanId);
     if (!scan) return null;
@@ -185,4 +183,17 @@ export async function saveScanResults(scanId, results) {
 
 export async function getById(id) {
     return Scan.findById(id);
+}
+
+export async function recoverDanglingScans() {
+    // Recover scans that were pending or stuck "running"
+    const scans = await Scan.find({
+        status: { $in: ["pending", "running"] },
+        deleted: false
+    });
+
+    for (const s of scans) {
+        console.log(`[R1] Requeue scan ${s._id}`);
+        await enqueueScan(s._id);
+    }
 }

@@ -7,7 +7,7 @@ class SSEManager {
     }
 
     /**
-     * Register a new SSE client under a runId
+     * Register SSE response for a given runId.
      */
     addClient(runId, res) {
         const key = String(runId);
@@ -18,55 +18,59 @@ class SSEManager {
 
         this.clients.get(key).add(res);
 
-        // Clean client on disconnect
-        reqCleanup(res, () => {
+        // Cleanup on disconnect
+        const cleanup = () => {
             this.removeClient(key, res);
-        });
+        };
 
-        // Send initial connection notice
-        res.write(`event: hello\n`);
-        res.write(`data: {"connected": true}\n\n`);
+        res.on("close", cleanup);
+        res.on("finish", cleanup);
+
+        // Do NOT send hello here.
+        // Controller already sends hello on connect.
     }
 
     /**
-     * Remove client from runId group
+     * Remove a response client from registry.
      */
     removeClient(runId, res) {
         const key = String(runId);
+
         if (!this.clients.has(key)) return;
 
-        const set = this.clients.get(key);
-        set.delete(res);
+        const group = this.clients.get(key);
+        group.delete(res);
 
-        if (set.size === 0) {
+        if (group.size === 0) {
             this.clients.delete(key);
         }
     }
 
     /**
-     * Broadcast an event to all clients listening on this runId
+     * Send event to all connected SSE clients under a runId.
      */
     broadcast(runId, payload) {
         const key = String(runId);
         const clients = this.clients.get(key);
+
         if (!clients || clients.size === 0) return;
 
         const evt = payload.event || "message";
-        const json = JSON.stringify(payload);
+        const data = JSON.stringify(payload);
 
         for (const res of clients) {
             try {
                 res.write(`event: ${evt}\n`);
-                res.write(`data: ${json}\n\n`);
+                res.write(`data: ${data}\n\n`);
             } catch (err) {
-                // client is dead → remove it
+                // connection is dead
                 this.removeClient(key, res);
             }
         }
     }
 
     /**
-     * Optional heartbeat to prevent proxies from killing SSE
+     * Keep-alive heartbeats so proxies don't kill SSE.
      */
     startHeartbeats(intervalMs = 25000) {
         setInterval(() => {
@@ -82,16 +86,6 @@ class SSEManager {
             }
         }, intervalMs);
     }
-}
-
-/**
- * Ensures we unregister SSE clients when their connection closes.
- */
-function reqCleanup(res, onClose) {
-    // Express `res` inherits from the underlying socket.
-    res.on("close", onClose);
-    res.on("finish", onClose);
-    res.on("end", onClose);
 }
 
 export const sseManager = new SSEManager();

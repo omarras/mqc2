@@ -8,6 +8,8 @@ import { connectMongo } from "./config/mongo.js";
 import routes from "./routes/index.js";
 import { errorHandler } from "./middleware/errorHandler.js";
 import { TMP_DIR } from "./shared/constants.js";
+import { recoverRunningRuns } from "./services/run.service.js";
+import { recoverDanglingScans } from "./services/scan.service.js";
 
 const app = express();
 
@@ -67,6 +69,10 @@ app.use(errorHandler);
 if (process.env.NODE_ENV !== "test") {
     await connectMongo();
 }
+
+await recoverDanglingScans();
+await recoverRunningRuns();
+console.log("[R1] Recovery complete → background engine active.");
 
 // start server
 if (process.env.NODE_ENV !== "test") {

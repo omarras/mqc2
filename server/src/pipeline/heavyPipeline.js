@@ -9,28 +9,10 @@ import {
     markScanRunning
 } from "../services/scan.service.js";
 import { sseManager } from "../services/sse.service.js";
+import { withTimeout, StepTimeoutError } from "../utils/withTimeout.js";
+import { normalizeScanForFrontend } from "../utils/scanNormalizer.js";
 
-function normalizeResultsForFrontend(scan, results) {
-    const pd = scan.metadata.pageDataCheck || {};
-
-    return {
-        urls: {
-            old: scan.urlOld,
-            new: scan.urlNew
-        },
-        pageDataCheck: pd,
-
-        text: results.text || null,
-        links: results.links || null,
-        seo: results.seo || null,
-
-        screenshotDesktop:
-            results.visualComparisonDesktop || results.screenshot || null,
-
-        screenshotMobile:
-            results.screenshotMobile || null
-    };
-}
+const CHECK_TIMEOUT_MS = Number(process.env.CHECK_TIMEOUT_MS || 120000);
 
 export async function runHeavyPipeline(runId, scanId) {
     let scan = await Scan.findById(scanId);
@@ -46,6 +28,35 @@ export async function runHeavyPipeline(runId, scanId) {
         if (!pd) throw new Error("Heavy phase started before pageDataCheck");
 
         // -------------------------------------------------------
+        // 0. Determine enabled steps
+        // -------------------------------------------------------
+        const cfg = scan.checkConfig || {};
+        const enabledSteps = Object.entries(cfg)
+            .filter(([key, enabled]) => enabled && CHECK_REGISTRY[key])
+            .map(([key]) => key);
+
+        // Short circuit: no enabled steps - treat as completed
+        if (enabledSteps.length === 0) {
+            await saveScanResults(scanId, results);
+            await markScanCompleted(scanId);
+
+            scan = await Scan.findById(scanId);
+
+            sseManager.broadcast(runId, {
+                event: "row-final",
+                rowIndex: scanId.toString(),
+                data: normalizeScanForFrontend(scan)
+            });
+
+            sseManager.broadcast(runId, {
+                event: "row-done",
+                rowIndex: scanId.toString()
+            });
+
+            return;
+        }
+
+        // -------------------------------------------------------
         // 1. LIGHTWEIGHT HTML FETCH (ONE TIME PER URL)
         // -------------------------------------------------------
         if (!scanContext.htmlOld_http) {
@@ -58,24 +69,27 @@ export async function runHeavyPipeline(runId, scanId) {
             scanContext.htmlNew_http = await resNew.text();
         }
 
-        const steps = Object.keys(scan.checkConfig || {});
-
-        // Execute each enabled heavy step
-        for (const step of steps) {
-            const enabled = scan.checkConfig[step];
+        // -------------------------------------------------------
+        // 2. Execute each enabled heavy step (with timeout)
+        // -------------------------------------------------------
+        for (const step of enabledSteps) {
             const handler = CHECK_REGISTRY[step];
-            if (!enabled || !handler) continue;
+            if (!handler) continue;
 
             try {
-                const stepResult = await handler({
-                    urlOld: pd.urlOld.noCacheUrl,
-                    urlNew: pd.urlNew.noCacheUrl,
-                    metadata: scan.metadata,
-                    pageDataCheck: pd,
-                    checkConfig: scan.checkConfig,
-                    scanId,
-                    scanContext
-                });
+                const stepResult = await withTimeout(
+                    handler({
+                        urlOld: pd.urlOld.noCacheUrl,
+                        urlNew: pd.urlNew.noCacheUrl,
+                        metadata: scan.metadata,
+                        pageDataCheck: pd,
+                        checkConfig: scan.checkConfig,
+                        scanId,
+                        scanContext
+                    }),
+                    CHECK_TIMEOUT_MS,
+                    step
+                );
 
                 // Strip heavy HTML
                 if (stepResult?.cleanedHtml) delete stepResult.cleanedHtml;
@@ -104,9 +118,14 @@ export async function runHeavyPipeline(runId, scanId) {
                 });
 
             } catch (err) {
-                results[step] = { error: err.message };
+                const message =
+                    err instanceof StepTimeoutError
+                        ? `Timeout in ${err.stepName} after ${err.timeoutMs}ms`
+                        : err.message;
 
-                await markScanFailed(scanId, err.message);
+                results[step] = { error: message };
+
+                await markScanFailed(scanId, message);
                 await saveScanResults(scanId, results);
 
                 // Reload scan for normalized output
@@ -115,13 +134,13 @@ export async function runHeavyPipeline(runId, scanId) {
                 sseManager.broadcast(runId, {
                     event: "row-error",
                     rowIndex: scanId.toString(),
-                    message: err.message
+                    message
                 });
 
                 sseManager.broadcast(runId, {
                     event: "row-final",
                     rowIndex: scanId.toString(),
-                    data: normalizeResultsForFrontend(scan, results)
+                    data: normalizeScanForFrontend(scan)
                 });
 
                 sseManager.broadcast(runId, {
@@ -133,7 +152,9 @@ export async function runHeavyPipeline(runId, scanId) {
             }
         }
 
-        // Completed
+        // -------------------------------------------------------
+        // 3. Completed
+        // -------------------------------------------------------
         await saveScanResults(scanId, results);
         await markScanCompleted(scanId);
 
@@ -144,7 +165,7 @@ export async function runHeavyPipeline(runId, scanId) {
         sseManager.broadcast(runId, {
             event: "row-final",
             rowIndex: scanId.toString(),
-            data: normalizeResultsForFrontend(scan, results)
+            data: normalizeScanForFrontend(scan)
         });
 
         // MQC1 compatibility
@@ -154,12 +175,17 @@ export async function runHeavyPipeline(runId, scanId) {
         });
 
     } catch (err) {
-        await markScanFailed(scanId, err.message);
+        const message =
+            err instanceof StepTimeoutError
+                ? `Timeout in ${err.stepName} after ${err.timeoutMs}ms`
+                : err.message;
+
+        await markScanFailed(scanId, message);
 
         sseManager.broadcast(runId, {
             event: "row-error",
             rowIndex: scanId.toString(),
-            message: err.message
+            message
         });
 
         sseManager.broadcast(runId, {

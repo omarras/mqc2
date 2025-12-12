@@ -8,6 +8,10 @@ import {
     saveScanResults
 } from "../services/scan.service.js";
 import { sseManager } from "../services/sse.service.js";
+import { withTimeout, StepTimeoutError } from "../utils/withTimeout.js";
+import { normalizeScanForFrontend } from "../utils/scanNormalizer.js";
+
+const CHECK_TIMEOUT_MS = Number(process.env.CHECK_TIMEOUT_MS || 120000);
 
 export async function runPageDataPipeline(runId, scanId) {
     let scan = await Scan.findById(scanId);
@@ -20,13 +24,17 @@ export async function runPageDataPipeline(runId, scanId) {
 
     try {
         // -------------------------------------------
-        // 1. PAGE DATA CHECK ONLY
+        // 1. PAGE DATA CHECK ONLY (with timeout)
         // -------------------------------------------
-        const pdResult = await pageDataCheck({
-            urlOld: scan.urlOld,
-            urlNew: scan.urlNew,
-            scanContext
-        });
+        const pdResult = await withTimeout(
+            pageDataCheck({
+                urlOld: scan.urlOld,
+                urlNew: scan.urlNew,
+                scanContext
+            }),
+            CHECK_TIMEOUT_MS,
+            "pageDataCheck"
+        );
 
         // Save metadata
         scan.metadata = {
@@ -50,7 +58,7 @@ export async function runPageDataPipeline(runId, scanId) {
             await markScanFailed(scanId, msg);
             await saveScanResults(scanId, { pageDataCheck: pdResult.publicMetadata });
 
-            // Minimal MQC3 final payload
+            // Minimal MQC2 final payload
             const finalPayload = {
                 urls: {
                     old: scan.urlOld,
@@ -86,20 +94,34 @@ export async function runPageDataPipeline(runId, scanId) {
             return;
         }
 
-        // Success: Phase 1 complete — no final result yet
+        // Success: Phase 1 complete - no final result yet
         sseManager.broadcast(runId, {
             event: "row-done",
             rowIndex: scanId.toString()
         });
 
     } catch (err) {
-        // Fatal error in Phase 1
-        await markScanFailed(scanId, err.message);
+        // Fatal error in Phase 1 (including timeout)
+        const message =
+            err instanceof StepTimeoutError
+                ? `Timeout in ${err.stepName} after ${err.timeoutMs}ms`
+                : err.message;
+
+        await markScanFailed(scanId, message);
+
+        // Reload once, in case metadata was partially written
+        scan = await Scan.findById(scanId);
 
         sseManager.broadcast(runId, {
             event: "row-error",
             rowIndex: scanId.toString(),
-            message: err.message
+            message
+        });
+
+        sseManager.broadcast(runId, {
+            event: "row-final",
+            rowIndex: scanId.toString(),
+            data: normalizeScanForFrontend(await Scan.findById(scanId))
         });
 
         sseManager.broadcast(runId, {

@@ -1,21 +1,26 @@
 // src/services/scanLatest.service.js
+
 import { Scan } from "../models/Scan.js";
 
 /**
- * Build a unique key for a URL pair.
+ * URL key for grouping (latest generation per URL pair).
  */
 function urlKey(scan) {
     return `${scan.urlOld}:::${scan.urlNew}`;
 }
 
 /**
- * Retrieve the latest scan per URL pair for a run.
- * Returns a Map keyed by URL-key.
+ * Returns Map<urlKey, latest scan>
+ * Ensures:
+ * - deleted scans filtered out
+ * - missing createdAt handled
+ * - consistent latest-generation selection
  */
 export async function getLatestScansForRun(runId) {
-    const scans = await Scan.find({ runId, deleted: false }).lean();
+    const scans = await Scan.find({ runId, deleted: { $ne: true } }).lean();
 
     const map = new Map();
+
     for (const s of scans) {
         const key = urlKey(s);
 
@@ -23,9 +28,11 @@ export async function getLatestScansForRun(runId) {
             map.set(key, s);
         } else {
             const existing = map.get(key);
-            if (new Date(s.createdAt) > new Date(existing.createdAt)) {
-                map.set(key, s);
-            }
+
+            const a = new Date(s.createdAt || 0);
+            const b = new Date(existing.createdAt || 0);
+
+            if (a > b) map.set(key, s);
         }
     }
 
@@ -33,7 +40,8 @@ export async function getLatestScansForRun(runId) {
 }
 
 /**
- * Computes counters from the latest-generation scans.
+ * Returns { completed, failed, total }
+ * From latest-generation scans only.
  */
 export async function computeLatestCounters(runId) {
     const latest = await getLatestScansForRun(runId);
@@ -41,17 +49,21 @@ export async function computeLatestCounters(runId) {
     let completed = 0;
     let failed = 0;
 
-    for (const s of latest.values()) {
-        if (s.status === "completed") completed++;
-        else if (s.status === "failed") failed++;
+    for (const scan of latest.values()) {
+        if (scan.status === "completed") completed++;
+        else if (scan.status === "failed") failed++;
     }
 
-    return { completed, failed, total: latest.size };
+    return {
+        completed,
+        failed,
+        total: latest.size
+    };
 }
 
 /**
- * Determine if a run is fully complete:
- * All latest-generation scans must be final.
+ * Determines whether all latest scans reached a terminal state:
+ * completed | failed
  */
 export async function isRunFullyComplete(runId) {
     const latest = await getLatestScansForRun(runId);
