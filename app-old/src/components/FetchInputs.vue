@@ -1,3 +1,5 @@
+<!--src/components/FetchInputs.vue-->
+
 <script setup>
 import { ref, onMounted, watch } from "vue";
 

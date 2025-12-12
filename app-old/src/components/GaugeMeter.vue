@@ -1,3 +1,5 @@
+<!--src/components/Gaugemeter.vue-->
+
 <script setup>
 import { computed } from 'vue'
 

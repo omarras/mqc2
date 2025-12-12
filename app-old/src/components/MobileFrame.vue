@@ -1,3 +1,5 @@
+<!--src/components/MobileFrame.vue-->
+
 <template>
   <div class="card">
     <h2>Mobile View<br/><span class="diff-title">(Contentstack)</span></h2>

@@ -1,3 +1,4 @@
+<!--src/components/Results/ResultsPanel.vue-->
 <script setup>
 import {computed, ref} from "vue";
 import ResultItem from "./ResultItem.vue";

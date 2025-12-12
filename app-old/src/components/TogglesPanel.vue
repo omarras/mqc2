@@ -1,3 +1,5 @@
+<!--src/components/TogglesPanel.vue-->
+
 <script setup>
 import { computed } from "vue";
 

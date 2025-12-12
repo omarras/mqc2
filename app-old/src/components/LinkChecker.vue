@@ -1,3 +1,5 @@
+<!--src/components/LinkChecker.vue-->
+
 <script setup>
 import { computed, ref, watch } from "vue";
 

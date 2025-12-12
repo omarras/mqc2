@@ -1,4 +1,5 @@
 <!-- src/components/ZoomModal.vue -->
+
 <template>
   <Teleport to="body">
     <div v-if="open" class="modal" @keydown.esc.prevent="emitClose" ref="root">

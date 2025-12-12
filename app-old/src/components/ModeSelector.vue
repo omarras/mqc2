@@ -1,3 +1,5 @@
+<!--src/components/ModeSelector.vue-->
+
 <script setup>
 /**
  * Props:
@@ -35,7 +37,7 @@ function onKey(e) {
           :class="{ active: modelValue==='single' }"
           @click="setMode('single')"
       >
-        Single
+        Manual
       </button>
 
       <button
@@ -45,7 +47,7 @@ function onKey(e) {
           :class="{ active: modelValue==='bulk' }"
           @click="setMode('bulk')"
       >
-        Bulk
+        CSV Upload
       </button>
 
       <button
@@ -55,7 +57,7 @@ function onKey(e) {
           :class="{ active: modelValue==='fetch' }"
           @click="setMode('fetch')"
       >
-        Fetch
+        From Dashboard
       </button>
     </div>
   </div>

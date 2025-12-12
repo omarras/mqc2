@@ -1,3 +1,5 @@
+<!--src/components/Screenshots.vue-->
+
 <script setup>
 import { ref, computed } from 'vue'
 import ZoomModal from './ZoomModal.vue'

@@ -1,3 +1,5 @@
+<!--src/components/SingleInputs.vue-->
+
 <script setup>
 /**
  * SingleInputs.vue

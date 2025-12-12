@@ -2,9 +2,9 @@
 import { ref } from "vue";
 
 /**
- * BulkUploader.vue (fixed)
+ * BulkUploader.vue
  *
- * This component now owns:
+ * Owns:
  *  - the hidden file input
  *  - the browse trigger
  *
@@ -12,7 +12,7 @@ import { ref } from "vue";
  *  - change(file)
  *  - dragover
  *  - dragleave
- *  - drop
+ *  - drop(event)
  */
 
 const props = defineProps({
@@ -24,18 +24,15 @@ const emit = defineEmits(["change", "dragover", "dragleave", "drop"]);
 
 const fileInput = ref(null);
 
-// Open native file picker
 function openPicker() {
   fileInput.value?.click();
 }
 
-// When user selects a file
 function handleFile(e) {
   const f = e.target.files?.[0] || null;
   emit("change", f);
 }
 
-// When user drops a file
 function handleDrop(e) {
   emit("drop", e);
 }

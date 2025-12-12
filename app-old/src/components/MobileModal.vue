@@ -1,3 +1,5 @@
+<!--src/components/MobileModal.vue-->
+
 <template>
   <Teleport to="body">
     <div v-if="open" class="mm" @keydown.esc.prevent="emitClose">

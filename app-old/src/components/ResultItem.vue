@@ -1,15 +1,16 @@
+<!--src/components/Results/ResultItem.vue-->
 <script setup>
 import {computed, ref} from "vue";
-import GaugeMeter from "../GaugeMeter.vue";
-import Screenshots from "../Screenshots.vue";
-import TextDiff from "../TextDiff.vue";
-import LinkChecker from "../LinkChecker.vue";
-import Seo from "../Seo.vue";
-import Performance from "../Performance.vue";
-import BestPractices from "../BestPractices.vue";
-import Accessibility from "../Accessibility.vue";
-import MobileFrame from "../MobileFrame.vue";
-import MobileModal from "../MobileModal.vue";
+import GaugeMeter from "./GaugeMeter.vue";
+import Screenshots from "./Screenshots.vue";
+import TextDiff from "./TextDiff.vue";
+import LinkChecker from "./LinkChecker.vue";
+import Seo from "./Seo.vue";
+import Performance from "./Performance.vue";
+import BestPractices from "./BestPractices.vue";
+import Accessibility from "./Accessibility.vue";
+import MobileFrame from "./MobileFrame.vue";
+import MobileModal from "./MobileModal.vue";
 
 const emit = defineEmits(['compare'])
 

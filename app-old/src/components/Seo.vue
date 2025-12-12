@@ -1,3 +1,5 @@
+<!--src/components/Seo.vue-->
+
 <script setup>
 import { ref, computed } from 'vue'
 

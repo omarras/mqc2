@@ -1,3 +1,5 @@
+<!--src/components/RemarksBar.vue-->
+
 <template>
   <div v-if="hasAny" class="alert alert--amber">
     <h3 class="alert__title">Migration Remarks</h3>

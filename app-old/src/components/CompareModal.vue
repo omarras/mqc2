@@ -1,3 +1,5 @@
+<!--src/components/CompareModal.vue-->
+
 <template>
   <Teleport to="body">
     <div v-if="open" class="cmp" @keydown.esc.prevent="emitClose">
