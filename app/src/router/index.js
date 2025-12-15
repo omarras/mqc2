@@ -9,6 +9,11 @@ export default createRouter({
     routes: [
         { path: "/", component: HomeView },
         { path: "/runs/new", component: CreateRunView },
-        { path: "/runs/:id", component: RunView }
+
+        // Viewer (default)
+        { path: "/runs/:id", component: RunView },
+
+        // Admin variant
+        { path: "/runs/:id/admin", component: RunView, props: { isAdminRoute: true } }
     ]
 });

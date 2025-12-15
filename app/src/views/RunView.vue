@@ -1,16 +1,39 @@
+<!--src/views/RunView.vue-->
 <script setup>
 import { onMounted, computed, ref } from "vue";
 import { useRoute } from "vue-router";
 import { useRunStore } from "../store/runStore.js";
 import * as api from "../api/runs.js";
 import ScanRow from "../components/scan/ScanRow.vue";
+import philips from "../assets/philips.svg";
+import l2l from "../assets/l2l.png";
 
 const route = useRoute();
+
+const isAdmin = computed(() => {
+  // 1) props flag (from router)
+  if (route.matched.some(r => r.path.includes("/admin"))) return true;
+
+  // fallback if you want: props passed in
+  return route.path.endsWith("/admin");
+});
+
 const store = useRunStore();
+
+// Computeds
 const runId = computed(() => route.params.id);
+const runName = computed(() => {
+  if (!store.currentRun) return "Run";
+  return store.currentRun.runName || runId.value;
+});
+
 
 // selection for detail tabs
 const selectedScanId = ref(null);
+
+function toggleOpen(id) {
+  selectedScanId.value = selectedScanId.value === id ? null : id;
+}
 
 // simple add-scan inputs
 const newOldUrl = ref("");
@@ -133,128 +156,85 @@ async function addScan() {
 function selectScan(scanId) {
   selectedScanId.value = scanId;
 }
+
 </script>
 
 <template>
-  <div>
-    <!-- RUN HEADER with rerun icon -->
-    <h1 style="display:flex; align-items:center; gap:8px;">
-      <span>Run {{ runId }}</span>
+  <main class="page">
+    <header class="page__header">
+      <div class="logos">
+        <img :src="philips" alt="" class="logo" />
+        <span class="slash muted" aria-hidden="true">//</span>
+        <img :src="l2l" alt="" class="logo" />
+      </div>
+      <h1>{{ runName }}</h1>
+      <p class="muted sub-title">
+        Review migrated pages against production, one by one.
+      </p>
+    </header>
 
-      <button
-          type="button"
-          title="Rerun all scans"
-          @click="rerunRun"
-          style="cursor:pointer;"
-      >
-        🔁
-      </button>
-    </h1>
+    <section class="card">
+      <div class="controls-bar">
+        <div class="mono muted">
+          Scans: {{ scanList.length }}
+        </div>
 
-    <h2>Scans</h2>
+        <div class="controls-cta">
+          <button v-if="isAdmin" class="main-cta" type="button" @click="rerunRun">
+            Rerun Run
+          </button>
+        </div>
+      </div>
+    </section>
 
-    <table border="1" cellpadding="8">
-      <thead>
-      <tr>
-        <th>Scan ID</th>
-        <th>Status</th>
-        <th>Old URL</th>
-        <th>New URL</th>
-        <th>Phase</th>
-        <th>Score (Text)</th>
-        <th>Score (SEO)</th>
-        <th>Actions</th>
-      </tr>
-      </thead>
-
-      <tbody>
-      <tr
-          v-for="scan in scanList"
+    <section class="results">
+      <ScanRow
+          v-for="(scan, idx) in scanList"
           :key="scan.id"
+          :scan="scan"
+          :scan-id="scan.id"
+          :open="selectedScanId === scan.id"
+          :index="idx"
+          :check-config-snapshot="store.currentRun?.checkConfigSnapshot"
+          @toggle="toggleOpen"
       >
-        <td>{{ scan.id }}</td>
-        <td>{{ scan.status }}</td>
-        <td>{{ scan.urls?.old }}</td>
-        <td>{{ scan.urls?.new }}</td>
-        <td>
-          <span v-if="scan.pageDataCheck && !scan.text">Phase 1</span>
-          <span v-else-if="scan.text">Phase 2</span>
-          <span v-else>-</span>
-        </td>
-        <td>{{ scan.text?.contentParity?.score ?? "-" }}</td>
-        <td>{{ scan.seo?.summary?.globalScore ?? "-" }}</td>
-
-        <td>
-          <!-- view / open in tabbed area -->
-          <button
-              type="button"
-              title="View details"
-              @click="selectScan(scan.id)"
-              style="margin-right:4px;"
-          >
-            👁️
+        <template v-if="isAdmin" #adminActions>
+          <button type="button" class="open-link open-link--edit" @click.stop="rescanScan(scan.id)">
+            Rescan
           </button>
-
-          <!-- rescan single -->
-          <button
-              type="button"
-              title="Rescan"
-              @click="rescanScan(scan.id)"
-              style="margin-right:4px;"
-          >
-            🔄
+          <button type="button" class="open-link open-link--edit" @click.stop="editScan(scan)">
+            Edit
           </button>
-
-          <!-- edit URLs -->
-          <button
-              type="button"
-              title="Edit URLs"
-              @click="editScan(scan)"
-              style="margin-right:4px;"
-          >
-            ✏️
+          <button type="button" class="open-link open-link--edit" @click.stop="deleteScan(scan.id)">
+            Delete
           </button>
+        </template>
+      </ScanRow>
+    </section>
 
-          <!-- delete scan -->
-          <button
-              type="button"
-              title="Delete scan"
-              @click="deleteScan(scan.id)"
-          >
-            🗑️
+    <section v-if="isAdmin" class="card">
+      <h2 style="margin-bottom:12px;">Add scan to this run</h2>
+
+      <div class="grid grid-2">
+        <div class="field">
+          <label>AEM URL</label>
+          <input v-model="newOldUrl" placeholder="https://www.philips.ie/" />
+        </div>
+
+        <div class="field">
+          <label>Contentstack URL</label>
+          <input v-model="newNewUrl" placeholder="https://stg.philips.ie/" />
+        </div>
+      </div>
+
+      <div class="controls-bar">
+        <div></div>
+        <div class="controls-cta">
+          <button class="main-cta" type="button" @click="addScan">
+            Add scan
           </button>
-        </td>
-      </tr>
-      </tbody>
-    </table>
-
-    <!-- TAB VIEWER FOR SELECTED SCAN -->
-    <div v-if="selectedScan" style="margin-top:24px;">
-      <h3>
-        Scan details
-        <span style="font-size:12px; opacity:0.7;">
-          ({{ selectedScan.urls?.old }} → {{ selectedScan.urls?.new }})
-        </span>
-      </h3>
-
-      <!-- Your MQC2 tabbed viewer -->
-      <ScanRow :scan="selectedScan" />
-    </div>
-
-    <!-- ADD NEW SCAN TO RUN -->
-    <h3 style="margin-top:24px;">Add scan to this run</h3>
-    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-      <input
-          v-model="newOldUrl"
-          placeholder="Old URL"
-          style="min-width:280px;"
-      />
-      <input
-          v-model="newNewUrl"
-          placeholder="New URL"
-          style="min-width:280px;"
-      />
-      <button type="button" @click="addScan">Add scan</button>
-    </div>
-  </div>
+        </div>
+      </div>
+    </section>
+  </main>
 </template>

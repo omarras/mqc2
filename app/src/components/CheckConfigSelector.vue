@@ -2,30 +2,32 @@
 const model = defineModel(); // v-model:checkConfig
 
 const options = [
-  { key: "text", label: "Text comparison" },
-  { key: "seo", label: "SEO" },
+  { key: "visualComparisonDesktop", label: "Visual Comparison" },
+  { key: "screenshotMobile", label: "Mobile View" },
+  { key: "text", label: "Text Comparison" },
   { key: "links", label: "Link Checker" },
-  { key: "visualComparisonDesktop", label: "Screenshot Desktop" },
-  { key: "screenshotMobile", label: "Screenshot Mobile" }
+  { key: "seo", label: "SEO" }
 ];
 </script>
 
 <template>
+
   <div class="check-config">
-    <h3>Checks</h3>
-    <div v-for="opt in options" :key="opt.key">
-      <label>
+
+    <div class="toggle-grid">
+      <label v-for="opt in options" :key="opt.key" class="tgl">
         <input type="checkbox" v-model="model[opt.key]" />
-        {{ opt.label }}
+
+        <span class="tgl__ui">
+      <span class="tgl__text">{{ opt.label }}</span>
+
+      <span class="tgl__switch" aria-hidden="true">
+        <span class="tgl__track"></span>
+        <span class="tgl__thumb"></span>
+      </span>
+    </span>
       </label>
     </div>
+
   </div>
 </template>
-
-<style scoped>
-.check-config {
-  border: 1px solid #ccc;
-  padding: 12px;
-  margin: 12px 0;
-}
-</style>

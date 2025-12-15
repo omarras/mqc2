@@ -1,0 +1,12 @@
+.sum-card{background:#0e1118;border:1px solid var(--c-border);border-radius:14px;padding:12px}
+.sum-card__label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.04em}
+.sum-card__num{font-size:28px;font-weight:800;margin:4px 0 8px}
+.meter{height:8px;background:#141824;border-radius:999px;overflow:hidden;border:1px solid var(--c-border)}
+.meter__bar{height:100%;background:linear-gradient(90deg,rgba(255,255,255,.4),rgba(255,255,255,.8))}
+.meter--great .meter__bar{background:linear-gradient(90deg,#34d399,#059669)}
+.meter--good .meter__bar{background:linear-gradient(90deg,#a7f3d0,#34d399)}
+.meter--warn .meter__bar{background:linear-gradient(90deg,#fde68a,#f59e0b)}
+.meter--bad .meter__bar{background:linear-gradient(90deg,#fca5a5,#ef4444)}
+.subcard {
+    margin-top: 40px;
+}

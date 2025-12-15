@@ -1,0 +1,28 @@
+/* Shared controls layout (MQC1) */
+
+.controls-bar {
+    display: grid;
+    grid-template-columns: 1fr 220px;
+    align-items: center;
+    gap: 12px;
+    margin: 14px 0;
+}
+
+.controls-cta {
+    display: flex;
+    justify-content: flex-end;
+}
+
+@media (max-width: 840px) {
+    .controls-bar {
+        grid-template-columns: 1fr;
+    }
+
+    .controls-cta {
+        justify-content: stretch;
+    }
+
+    .controls-cta .main-cta {
+        width: 100%;
+    }
+}

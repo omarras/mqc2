@@ -12,7 +12,7 @@ function getPhase(scan) {
 
 <template>
   <div>
-    <h3>Overview</h3>
+    <h2 class="quality-overview">Page Information</h2>
 
     <p><strong>Status:</strong> {{ scan.status }}</p>
     <p><strong>Phase:</strong> {{ getPhase(scan) }}</p>

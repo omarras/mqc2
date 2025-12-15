@@ -1,0 +1,59 @@
+/* Create Run view, MQC1 page shell and header */
+
+/* Page container */
+.page {
+    max-width: 1200px;
+    margin: 24px auto 64px;
+    padding: 0 18px;
+}
+
+/* Header */
+.page__header h1 {
+    margin: 0 0 4px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.sub-title {
+    margin-bottom: 50px;
+}
+
+/* Logos block */
+.logos {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+}
+
+.logo {
+    height: 100px;
+    width: auto;
+    object-fit: contain;
+}
+
+.slash {
+    height: 100px;
+    display: flex;
+    align-items: center;
+    line-height: 1;
+    font-size: 48px;
+    margin: 0 30px;
+    font-weight: 800;
+}
+
+.quality-overview {
+    margin-bottom: 5px;
+}
+
+.gauge-grid {
+    display: grid;
+    gap: 14px;
+    grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+}
+
+.gauge-wrap {
+    position: relative;
+    display: grid;
+    place-items: center;
+}

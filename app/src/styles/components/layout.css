@@ -1,0 +1,31 @@
+/* Layout primitives */
+
+/* Ensures viewport safety without centering content */
+.app-frame {
+    min-width: 320px;
+    min-height: 100vh;
+
+    max-width: none;
+    margin: 0;
+    padding: 0;
+    text-align: center;
+}
+
+.page{
+    max-width: 1200px;
+    margin: 24px auto 64px;
+    padding: 0 18px;
+}
+
+.vcenter {
+    min-height: calc(100vh - 24px - 64px); /* subtract page margins if you want */
+    display: flex;
+    align-items: center;
+}
+
+.vcenter__inner {
+    width: 100%;
+}
+
+
+

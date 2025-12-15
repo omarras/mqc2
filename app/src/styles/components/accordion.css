@@ -1,0 +1,55 @@
+/* Accordion styles */
+
+.accordion {
+    background: var(--c-card);
+    border: 1px solid var(--c-border);
+    box-shadow: var(--shadow-card);
+    border-radius: 14px;
+    margin-top: 16px;
+    overflow: hidden;
+    position: relative;
+}
+
+.accordion summary {
+    list-style: none;
+    cursor: pointer;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    padding: 16px 20px;
+}
+
+.accordion summary {
+    grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.accordion[open] summary {
+    border-bottom: 1px solid var(--c-border);
+}
+
+.acc-caret {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 2px;
+}
+
+.acc-caret .chev {
+    transition: transform 160ms ease;
+    transform: rotate(0deg);
+}
+
+.acc-caret.is-open .chev {
+    transform: rotate(90deg);
+}
+
+.acc-idx {
+    flex: 0 0 auto;
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0.7;
+    min-width: 22px;
+    text-align: center;
+    margin-top: 2px;
+}

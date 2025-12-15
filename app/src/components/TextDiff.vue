@@ -17,39 +17,29 @@ const translated = ref(null);
 const translating = ref(false);
 const showTranslation = ref(false);
 
-const translateButtonLabel = computed(() => {
-  if (translating.value) return "Translating…";
-  if (!translated.value) return "Translate to English";
-  return showTranslation.value ? "Show Original" : "Show English";
-});
-
 /* -------------------------------------------------------------------------
    TRANSLATION: translate all ops textOld/textNew → English
 ------------------------------------------------------------------------- */
-async function handleTranslateToggle() {
-  // Case 1: user has not translated yet → run translation
-  if (!translated.value) {
-    translating.value = true;
-    translated.value = [];
+async function runTranslation() {
+  if (translating.value) return;
 
-    for (const op of props.ops) {
-      const tOld = await translateToEnglish(op.textOld || "");
-      const tNew = await translateToEnglish(op.textNew || "");
+  translating.value = true;
+  showTranslation.value = false; // keep showing original while we work
 
-      translated.value.push({
-        ...op,
-        textOld: tOld,
-        textNew: tNew
-      });
-    }
+  const out = [];
 
-    translating.value = false;
-    showTranslation.value = true; // immediately switch to English
-    return;
+  for (const op of props.ops) {
+    const newOp = { ...op };
+
+    newOp.textOld = await translateToEnglish(op.textOld || "");
+    newOp.textNew = await translateToEnglish(op.textNew || "");
+
+    out.push(newOp);
   }
 
-  // Case 2: translation already exists → toggle
-  showTranslation.value = !showTranslation.value;
+  translated.value = out;         // assign once, when complete
+  translating.value = false;
+  showTranslation.value = true;   // now you can switch to English
 }
 
 /* -------------------------------------------------------------------------
@@ -163,8 +153,12 @@ function normalizeOps(raw) {
   return rows;
 }
 
+const hasTranslation = computed(
+    () => Array.isArray(translated.value) && translated.value.length > 0
+);
+
 const rowsToUse = computed(() =>
-    showTranslation.value && translated.value ? translated.value : props.ops
+    showTranslation.value && hasTranslation.value ? translated.value : props.ops
 );
 
 const normalizedRows = computed(() => normalizeOps(rowsToUse.value));
@@ -175,75 +169,124 @@ const visibleRows = computed(() =>
 </script>
 
 <template>
-  <div class="card">
-    <h2>Text Comparison</h2>
-    <RemarksBar v-if="pair" :pair="pair" />
+  <h2>Text Comparison</h2>
+  <RemarksBar v-if="pair" :pair="pair" />
 
-    <div v-if="loading" class="shot--placeholder" style="height:160px;">
-      <div class="loader"></div>
-      <div class="tiny muted">Loading diff…</div>
+  <div v-if="loading" class="shot--placeholder" style="height:160px;">
+    <div class="loader"></div>
+    <div class="tiny muted">Loading diff…</div>
+  </div>
+
+  <template v-else>
+    <div class="controls-row"
+         style="display:flex; gap:12px; align-items:center; justify-content:space-between; margin-bottom:8px;">
+      <label v-if="showToggle" class="tgl" title="Show all content">
+        <input type="checkbox" checked="" v-model="showAllLines">
+        <span class="tgl__ui">
+            <span class="tgl__switch" aria-hidden="true">
+              <span class="tgl__track"></span>
+              <span class="tgl__thumb"></span>
+            </span><span class="tgl__text">Show all content</span>
+          </span>
+      </label>
+
+      <button
+          v-if="!hasTranslation"
+          @click="runTranslation"
+          :disabled="translating"
+      >
+        {{ translating ? "Translating…" : "Translate to English" }}
+      </button>
+
+      <button
+          v-if="hasTranslation && !translating"
+          @click="showTranslation = !showTranslation"
+      >
+        {{ showTranslation ? "Show Original" : "Show English" }}
+      </button>
+
     </div>
 
-    <template v-else>
-      <div class="controls-row">
-        <div v-if="showToggle">
-          <label>
-            <input type="checkbox" v-model="showAllLines" /> Show all content
-          </label>
-        </div>
+    <div class="diff-table-wrapper">
+      <table class="diff-table">
+        <colgroup>
+          <col class="col-ln" /><col class="col-cell" />
+          <col class="col-ln" /><col class="col-cell" />
+        </colgroup>
 
-        <button @click="handleTranslateToggle" :disabled="translating">
-          {{ translateButtonLabel }}
-        </button>
+        <thead>
+        <tr>
+          <th class="muted">#</th><th>AEM content</th>
+          <th class="muted">#</th><th>Contentstack content</th>
+        </tr>
+        </thead>
+
+        <tbody>
+        <tr v-for="(r, i) in visibleRows" :key="'row' + i">
+
+          <!-- LEFT SIDE -->
+          <td class="diff__ln mono">{{ r.oldLn }}</td>
+          <td class="diff__cell">
+            <div :class="['seg', 'seg--' + r.old.cls]">
+              <template v-if="r.op === 'similar' && r.old.fine">
+                <span>{{ r.old.fine.aLeft }}</span>
+                <span class="diff-missing">{{ r.old.fine.aDiff }}</span>
+                <span>{{ r.old.fine.aRight }}</span>
+              </template>
+
+              <template v-else-if="r.op === 'similar'">
+                <span>{{ r.old.text }}</span>
+                <span v-if="r.missingWords" class="sim-missing"> (missing: {{ r.missingWords }})</span>
+              </template>
+
+              <template v-else>
+                {{ r.old.text || ' ' }}
+              </template>
+            </div>
+          </td>
+
+          <!-- RIGHT SIDE -->
+          <td class="diff__ln mono">{{ r.newLn }}</td>
+          <td class="diff__cell">
+            <div :class="['seg', 'seg--' + r.new.cls]">
+              <template v-if="r.op === 'similar' && r.new.fine">
+                <span>{{ r.new.fine.bLeft }}</span>
+                <span class="diff-added">{{ r.new.fine.bDiff }}</span>
+                <span>{{ r.new.fine.bRight }}</span>
+              </template>
+
+              <template v-else-if="r.op === 'similar'">
+                <span>{{ r.new.text }}</span>
+                <span v-if="r.addedWords" class="sim-added">(added: {{ r.addedWords }})</span>
+              </template>
+
+              <template v-else>
+                {{ r.new.text || ' ' }}
+              </template>
+            </div>
+          </td>
+
+        </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- LEGEND -->
+    <div class="legend-row">
+      <div class="legend-item">
+        <span class="legend-color legend-missing"></span>
+        Missing (not migrated from AEM)
       </div>
-
-      <div class="diff-table-wrapper">
-        <table class="diff-table">
-          <thead>
-          <tr>
-            <th>#</th><th>AEM content</th>
-            <th>#</th><th>Contentstack content</th>
-          </tr>
-          </thead>
-
-          <tbody>
-          <tr v-for="(r, i) in visibleRows" :key="'row' + i">
-            <td>{{ r.oldLn }}</td>
-            <td>
-              <div :class="'seg seg--' + r.old.cls">
-                <template v-if="r.op === 'similar' && r.old.fine">
-                  <span>{{ r.old.fine.aLeft }}</span>
-                  <span class="diff-missing">{{ r.old.fine.aDiff }}</span>
-                  <span>{{ r.old.fine.aRight }}</span>
-                </template>
-                <template v-else>{{ r.old.text }}</template>
-              </div>
-            </td>
-
-            <td>{{ r.newLn }}</td>
-            <td>
-              <div :class="'seg seg--' + r.new.cls">
-                <template v-if="r.op === 'similar' && r.new.fine">
-                  <span>{{ r.new.fine.bLeft }}</span>
-                  <span class="diff-added">{{ r.new.fine.bDiff }}</span>
-                  <span>{{ r.new.fine.bRight }}</span>
-                </template>
-                <template v-else>{{ r.new.text }}</template>
-              </div>
-            </td>
-          </tr>
-          </tbody>
-        </table>
+      <div class="legend-item">
+        <span class="legend-color legend-added"></span>
+        Added (new content in CS)
       </div>
-    </template>
-  </div>
+      <div class="legend-item">
+        <span class="legend-color legend-similar"></span>
+        Similar (>80% identical)
+      </div>
+    </div>
+
+
+  </template>
 </template>
-
-<style scoped>
-.diff-missing { background: rgba(255,120,120,0.35); padding: 2px; }
-.diff-added { background: rgba(120,180,255,0.35); padding: 2px; }
-.seg--eq {}
-.seg--del { background: #ffd7d7; }
-.seg--ins { background: #d7f4ff; }
-.seg--sim { background: #fff6d5; }
-</style>

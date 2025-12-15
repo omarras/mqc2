@@ -1,0 +1,10 @@
+/* Small utilities used across components and views */
+
+.gap-14 {
+    gap: 14px;
+}
+
+/* For grid children that should span both columns in a 2-col grid */
+.col-span-2 {
+    grid-column: 1 / -1;
+}

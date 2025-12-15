@@ -8,18 +8,6 @@ RUN npm install
 
 COPY . /app
 
-# Accept build arguments for Vite environment variables
-ARG VITE_API_BASE_URL
-ARG VITE_LIBRETRANSLATE_ENDPOINT
-ARG VITE_SSE_SINGLE
-ARG VITE_SSE_BULK
-
-# Make them available as environment variables during build
-ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
-ENV VITE_LIBRETRANSLATE_ENDPOINT=$VITE_LIBRETRANSLATE_ENDPOINT
-ENV VITE_SSE_SINGLE=$VITE_SSE_SINGLE
-ENV VITE_SSE_BULK=$VITE_SSE_BULK
-
 # Build the Vue app
 RUN npm run build
 
