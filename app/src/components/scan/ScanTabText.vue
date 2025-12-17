@@ -1,39 +1,56 @@
 <!-- src/components/scan/ScanTabText.vue -->
 <script setup>
-import { computed } from "vue";
+import { computed, watch } from "vue";
 import TextDiff from "../TextDiff.vue";
+import RemarksBar from "../RemarksBar.vue";
+import ReportDefectButton from "../ReportDefectButton.vue";
 
 const props = defineProps({
   scan: { type: Object, required: true }
 });
 
-// MQC2 mapping stays the same:
+// ops / loading
 const ops = computed(() => props.scan?.text?.ops || []);
-
-// If you have a text flag/phase, use that. Otherwise fallback to status.
 const isLoading = computed(() => {
-  // If scan is still running and text result not present yet, show MQC1 loader UI
   const s = String(props.scan?.status || "").toLowerCase();
   return (s === "running" || s === "pending") && ops.value.length === 0;
 });
 
-// Pair is used by RemarksBar in MQC1 component
+// urls (pair)
 const pair = computed(() => ({
   old: props.scan?.urls?.old || props.scan?.pageDataCheck?.urlOld || "",
   new: props.scan?.urls?.new || props.scan?.pageDataCheck?.urlNew || ""
 }));
 
-const hasTextResult = computed(() => {
-  // If backend returns scan.text but ops are empty, we still show the component,
-  // because MQC1 can show empty table + controls.
-  return !!props.scan?.text;
+// show empty state if text missing
+const hasTextResult = computed(() => !!props.scan?.text);
+
+const pageDataCheck = computed(() =>
+    props.scan?.pageDataCheck ||
+    props.scan?.metadata?.pageDataCheck ||
+    null
+);
+
+// pageDataCheck source
+const metadata = computed(() => props.scan?.metadata || null);
+
+const remarksPair = computed(() => {
+  const m = metadata.value || {};
+  return {
+    remarksDS: m.remarksDS || "",
+    remarksDSOverride: m.remarksDSOverride || "",
+    remarksRegion: m.remarksRegion || "",
+    remarks: m.remarks || ""
+  };
 });
+
+const hasRemarks = computed(() =>
+    Object.values(remarksPair.value).some(v => String(v).trim())
+);
 </script>
 
 <template>
-  <!-- If the check hasn't produced scan.text at all -->
   <div v-if="!hasTextResult">
-    <!-- Use the same loader placeholder styling used elsewhere (MQC1 style) -->
     <div v-if="isLoading" class="shot--placeholder" style="height:160px;">
       <div class="loader"></div>
       <div class="tiny muted" style="margin-top:6px;">Loading diff…</div>
@@ -48,12 +65,30 @@ const hasTextResult = computed(() => {
     </div>
   </div>
 
-  <!-- Normal case: use MQC1 component as-is -->
-  <TextDiff
-      v-else
-      :loading="isLoading"
-      :ops="ops"
-      :pair="pair"
-      :showToggle="true"
-  />
+  <div v-else>
+    <div class="card-header">
+      <div class="card-header__left"></div>
+
+      <h2 class="card-header__title">
+        Text Comparison <span class="diff-title">(diff)</span>
+      </h2>
+
+      <div class="card-header__right">
+        <ReportDefectButton :scan="scan" />
+      </div>
+    </div>
+
+    <!-- IMPORTANT: no v-else here, we want both -->
+    <RemarksBar
+        v-if="hasRemarks"
+        :pair="remarksPair"
+    />
+
+    <TextDiff
+        :loading="isLoading"
+        :ops="ops"
+        :pair="pair"
+        :showToggle="true"
+    />
+  </div>
 </template>

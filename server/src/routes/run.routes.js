@@ -38,6 +38,7 @@ router.post("/:id/rerun", controller.rerun);
 // -------------------------------------------------------------
 router.post("/:id/scans", controller.addScans);
 router.patch("/:runId/scans/:scanId", controller.updateScan);
+router.patch("/:runId/scans/:scanId/ds-status", controller.updateDsStatus);
 router.delete("/:runId/scans", controller.deleteScans);
 
 export default router;

@@ -34,8 +34,6 @@ export async function takeShot(page, urlOrKey) {
     const filename = `${base}.png`;       // ⬅ no timestamp anymore
     const shotPath = path.join(TMP_DIR, filename);
 
-    console.log("[takeShot] saving screenshot to:", shotPath);
-
     await page.screenshot({
         path: shotPath,
         type: "png",

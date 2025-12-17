@@ -1,4 +1,6 @@
 <script setup>
+import ReportDefectButton from "../ReportDefectButton.vue";
+
 const props = defineProps({
   scan: Object
 });
@@ -6,7 +8,17 @@ const props = defineProps({
 
 <template>
   <div>
-    <h3>SEO</h3>
+    <div class="card-header">
+      <div class="card-header__left"></div>
+
+      <h2 class="card-header__title">
+        SEO
+      </h2>
+
+      <div class="card-header__right">
+        <ReportDefectButton :scan="scan" />
+      </div>
+    </div>
 
     <div v-if="!scan.seo">No SEO results yet.</div>
 

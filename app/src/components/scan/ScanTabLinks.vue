@@ -1,6 +1,7 @@
 <!-- src/components/scan/ScanTabLinks.vue -->
 <script setup>
 import { computed, ref } from "vue";
+import ReportDefectButton from "../ReportDefectButton.vue";
 
 const props = defineProps({
   scan: { type: Object, default: null }
@@ -123,7 +124,17 @@ const showPerfectMessage = computed(() => {
 
 <template>
   <div class="card">
-    <h2>Page Link Checker</h2>
+    <div class="card-header">
+      <div class="card-header__left"></div>
+
+      <h2 class="card-header__title">
+        Page Link Checker
+      </h2>
+
+      <div class="card-header__right">
+        <ReportDefectButton :scan="scan" />
+      </div>
+    </div>
 
     <div v-if="!ready" class="shot--placeholder" style="height:160px;">
       <div class="loader"></div>

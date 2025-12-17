@@ -16,15 +16,23 @@ import { runQueue } from "./runQueue.service.js";
 /**
  * Create a run with default counters.
  */
-export async function createRun(type, runName, runNameAuto = null) {
+export async function createRun(
+    type,
+    runName,
+    runNameAuto = null,
+    checkConfigSnapshot = {},
+    submittedCount = 0
+) {
     return Run.create({
         type,
         runName,
         runNameAuto: runNameAuto || `run-${Date.now()}`,
         status: "pending",
         totalScans: 0,
+        submittedCount,
         completedScans: 0,
         failedScans: 0,
+        checkConfigSnapshot,
         createdAt: new Date()
     });
 }

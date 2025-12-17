@@ -110,3 +110,38 @@ export async function deleteScans(runId, scanIds) {
     });
     return res.json();
 }
+
+export async function updateDsStatus(runId, scanId, dsStatus) {
+    console.log(
+        "[API:updateDsStatus] sending",
+        { runId, scanId, dsStatus }
+    );
+
+    const res = await fetch(
+        `${BASE}/runs/${runId}/scans/${scanId}/ds-status`,
+        {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ dsStatus })
+        }
+    );
+
+    const text = await res.text();
+
+    console.log(
+        "[API:updateDsStatus] response",
+        res.status,
+        text
+    );
+
+    if (!res.ok) {
+        throw new Error(text || `Failed to update dsStatus (${res.status})`);
+    }
+
+    try {
+        return JSON.parse(text);
+    } catch {
+        return text;
+    }
+}
+

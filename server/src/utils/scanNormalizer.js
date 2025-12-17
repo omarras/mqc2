@@ -1,22 +1,58 @@
 // src/utils/scanNormalizer.js
 
-/**
- * Normalize a raw DB Scan document into the MQC2 frontend ViewModel shape.
- *
- * Target shape = SSE `row-final.data`:
- *  {
- *    _id, scanId,
- *    urlOld, urlNew,
- *    urls: { old, new },        // extra convenience for the table
- *    status, phase,
- *    text,                      // full text step result
- *    seo,                       // full seo step result
- *    links,                     // full links step result
- *    screenshots: { desktop, mobile },
- *    pageDataCheck,
- *    metadata
- *  }
- */
+function normStr(v) {
+    return String(v ?? "").trim();
+}
+
+function mapDsToUat(dsStatusRaw) {
+    const raw = normStr(dsStatusRaw);
+    const key = raw.toLowerCase();
+
+    if (!raw) {
+        return {
+            dsStatusRaw: null,
+            uatStatus: "unknown",      // no DS status present
+            uatMismatch: false,
+            uatExpectedStartOk: false
+        };
+    }
+
+    // Your 3 UAT workflow states
+    if (key === "ready for uat") {
+        return {
+            dsStatusRaw: raw,
+            uatStatus: "ready",
+            uatMismatch: false,
+            uatExpectedStartOk: true
+        };
+    }
+
+    if (key === "uat feedback provided") {
+        return {
+            dsStatusRaw: raw,
+            uatStatus: "feedback",
+            uatMismatch: false,
+            uatExpectedStartOk: false
+        };
+    }
+
+    if (key === "uat approved") {
+        return {
+            dsStatusRaw: raw,
+            uatStatus: "approved",
+            uatMismatch: false,
+            uatExpectedStartOk: false
+        };
+    }
+
+    // Everything else is allowed to exist, but is a mismatch to the expectation
+    return {
+        dsStatusRaw: raw,
+        uatStatus: "other",
+        uatMismatch: true,
+        uatExpectedStartOk: false
+    };
+}
 
 export function normalizeScanForFrontend(scan) {
     if (!scan) return null;
@@ -25,75 +61,33 @@ export function normalizeScanForFrontend(scan) {
     const metadata = scan.metadata || {};
     const pageData = scan.pageDataCheck || metadata.pageDataCheck || null;
 
-    // URLs: prefer explicit string fields, then fall back to pageDataCheck
-    const urlOld =
-        scan.urlOld ||
-        pageData?.urlOld?.originalUrl ||
-        null;
+    const urlOld = scan.urlOld || pageData?.urlOld?.originalUrl || null;
+    const urlNew = scan.urlNew || pageData?.urlNew?.originalUrl || null;
 
-    const urlNew =
-        scan.urlNew ||
-        pageData?.urlNew?.originalUrl ||
-        null;
+    const text = results.text || results["text-comparison"] || scan.text || null;
+    const seo = results.seo || scan.seo || null;
+    const links = results.links || results["link-checker"] || scan.links || null;
 
-    // TEXT
-    // New runs should have results.text or results["text-comparison"].
-    // Old runs may have scan.text already in final shape.
-    const text =
-        results.text ||
-        results["text-comparison"] ||
-        scan.text ||
-        null;
-
-    // SEO
-    // New runs: results.seo (full object with rules/errors/summary).
-    // Old runs: scan.seo may already be normalized.
-    const seo =
-        results.seo ||
-        scan.seo ||
-        null;
-
-    // LINKS
-    // New runs: results.links or results["link-checker"].
-    // Old runs: scan.links may be { items, brokenCount, totalCount }.
-    const links =
-        results.links ||
-        results["link-checker"] ||
-        scan.links ||
-        null;
-
-    // SCREENSHOTS
-    // New runs: results.visualComparisonDesktop & results.screenshotMobile.
-    // Old runs: scan.screenshots.desktop / mobile already present.
     const desktopScreenshots =
-        results.visualComparisonDesktop ||
-        scan.screenshots?.desktop ||
-        null;
-
+        results.visualComparisonDesktop || scan.screenshots?.desktop || null;
     const mobileScreenshots =
-        results.screenshotMobile ||
-        scan.screenshots?.mobile ||
-        null;
+        results.screenshotMobile || scan.screenshots?.mobile || null;
+
+    // ✅ ALWAYS derive DS info from metadata.dsStatus (single source of truth)
+    const dsInfo = mapDsToUat(metadata.dsStatus);
 
     return {
         _id: scan._id,
         scanId: scan._id?.toString?.() || scan._id,
 
-        // URLs (strings)
         urlOld,
         urlNew,
 
-        // Convenience shape for table (what row-update SSE creates)
-        urls: {
-            old: urlOld,
-            new: urlNew
-        },
+        urls: { old: urlOld, new: urlNew },
 
-        // Pipeline status
         status: scan.status || null,
         phase: scan.phase || null,
 
-        // Step results – mirror SSE row-final
         text,
         seo,
         links,
@@ -103,10 +97,11 @@ export function normalizeScanForFrontend(scan) {
             mobile: mobileScreenshots
         },
 
-        // Phase 1 data
         pageDataCheck: pageData,
 
-        // Keep metadata, but ensure pageDataCheck is inside as well
+        // ✅ Derived DS info (NEVER persisted, NEVER cached)
+        dsInfo,
+
         metadata: {
             ...metadata,
             pageDataCheck: pageData || metadata.pageDataCheck
@@ -114,9 +109,6 @@ export function normalizeScanForFrontend(scan) {
     };
 }
 
-/**
- * Normalize an array of scans.
- */
 export function normalizeMany(scans = []) {
     return scans.map(normalizeScanForFrontend);
 }

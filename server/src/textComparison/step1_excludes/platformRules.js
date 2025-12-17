@@ -1,5 +1,11 @@
 export const PLATFORM_EXCLUDES = {
     AEM: [
+        { type: "selector", value: ".pv-slider__header" },
+        { type: "selector", value: ".pv-slider__wrapper" },
+        { type: "selector", value: ".p-st36-category-support-navigation" },
+        { type: "selector", value: ".pv-pc63-category-reference" },
+        { type: "selector", value: ".pv-n31-article-cards" },
+        { type: "selector", value: ".p-pc05v2-product-cards" },
         { type: "tag", value: "figcaption" },
         { type: "tag", value: "script" },
         { type: "tag", value: "title" },
@@ -21,6 +27,7 @@ export const PLATFORM_EXCLUDES = {
     ],
     ContentStack: [
         { type: "selector", value: ".navigation-bar" },
+        { type: "selector", value: ".swiper" },
         { type: "tag", value: "title" },
         { type: "tag", value: "header" },
         { type: "tag", value: "footer" },
@@ -28,6 +35,11 @@ export const PLATFORM_EXCLUDES = {
             type: "attrEquals",
             attr: "data-testid",
             equals: "newsletter-subscribe-form"
+        },
+        {
+            type: "attrEquals",
+            attr: "data-testid",
+            equals: "support-navigation"
         },
         {
             type: "attrContains",

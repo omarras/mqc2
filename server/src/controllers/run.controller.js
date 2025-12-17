@@ -9,7 +9,8 @@ import { sseManager } from "../services/sse.service.js";
 import {
     validateSingleRunBody,
     validateBulkRequest,
-    validateFetchCsvBody
+    validateFetchCsvBody,
+    validateUpdateDsStatusBody
 } from "../validators/run.validators.js";
 import { createRescansForScanIds, createRerunScans } from "../services/scan.service.js";
 import { computeLatestCounters } from "../services/scanLatest.service.js";
@@ -64,10 +65,15 @@ export async function single(req, res, next) {
             checkConfig
         } = validateSingleRunBody(req.body);
 
-        const run = await RunService.createRun("single", runName);
-        const runId = run._id;
-
         const effectiveCheckConfig = normalizeCheckConfig(checkConfig);
+        const run = await RunService.createRun(
+            "single",
+            runName,
+            null,
+            effectiveCheckConfig,
+            1
+        );
+        const runId = run._id;
 
         const metadata = {};
         if (req.body.lastReplicationDate) {
@@ -122,7 +128,13 @@ export async function bulk(req, res, next) {
 
         const effectiveCheckConfig = normalizeCheckConfig(rawCfg);
 
-        const run = await RunService.createRun("bulk", runName);
+        const run = await RunService.createRun(
+            "bulk",
+            runName,
+            null,
+            effectiveCheckConfig,
+            rows.length
+        );
         const runId = run._id;
 
         const skipped = [];
@@ -152,6 +164,7 @@ export async function bulk(req, res, next) {
                 remarksDS: row.remarksDS || null,
                 approachCombined: row.approachCombined || null,
                 targetTemplateCombined: row.targetTemplateCombined || null,
+                dsStatus: row.dsStatus || null,
                 lastReplicationDate: row.lastReplicationDate || null
             };
 
@@ -221,7 +234,7 @@ export async function fetchCSV(req, res, next) {
         params.set("sector", "d2c");
         params.set(
             "visibleFields",
-            "pagePath|directionFinal|remarksDS|contentStackUrl|approachCombined|targetTemplateCombined|previewUrlAuto|lastReplicationDate"
+            "pagePath|directionFinal|remarksDS|contentStackUrl|approachCombined|targetTemplateCombined|dsStatus|previewUrlAuto|lastReplicationDate"
         );
 
         buCombined.forEach(bu => params.append("buCombined", bu));
@@ -270,7 +283,13 @@ export async function fetchCSV(req, res, next) {
         const rows = parseCSV(buffer);
 
         // Create RUN
-        const run = await RunService.createRun("fetch", runName);
+        const run = await RunService.createRun(
+            "fetch",
+            runName,
+            null,
+            effectiveCheckConfig,
+            rows.length
+        );
         const runId = run._id;
 
         await Run.findByIdAndUpdate(runId, {
@@ -312,6 +331,7 @@ export async function fetchCSV(req, res, next) {
                 remarksDS: row.remarksDS || null,
                 approachCombined: row.approachCombined || null,
                 targetTemplateCombined: row.targetTemplateCombined || null,
+                dsStatus: row.dsStatus || null,
                 lastReplicationDate: row.lastReplicationDate || null
             };
 
@@ -741,3 +761,56 @@ export async function deleteScans(req, res, next) {
     }
 }
 
+// -------------------------------------------------------------
+// UPDATE DS STATUS
+// -------------------------------------------------------------
+export async function updateDsStatus(req, res, next) {
+    console.log("[API:updateDsStatus] HIT");
+    console.log("params:", req.params);
+    console.log("body:", req.body);
+    try {
+        const { runId, scanId } = req.params;
+        const { dsStatus } = validateUpdateDsStatusBody(req.body);
+
+        const scan = await Scan.findOne({ _id: scanId, runId, deleted: { $ne: true } });
+        console.log(
+            "[API:updateDsStatus] loaded scan",
+            scan?._id?.toString(),
+            "current dsStatus:",
+            scan?.metadata?.dsStatus
+        );
+        if (!scan) {
+            return res.status(404).json({ error: true, message: "Scan not found" });
+        }
+
+        const result = await Scan.updateOne(
+            { _id: scanId, runId, deleted: { $ne: true } },
+            { $set: { "metadata.dsStatus": dsStatus } }
+        );
+
+        console.log("[API:updateDsStatus] mongo result", result);
+
+        // Optional: broadcast SSE so UI updates immediately
+        // (This is safe even if nobody listens)
+        try {
+            const normalized = normalizeScanForFrontend(scan);
+            sseManager.broadcast(runId, {
+                event: "row-update",
+                rowIndex: scan._id.toString(), // consistent with your rescan/rerun approach
+                key: "metadata.dsStatus",
+                data: dsStatus
+            });
+        } catch (e) {
+            // ignore SSE failures
+        }
+
+        res.json({
+            ok: true,
+            runId,
+            scanId,
+            dsStatus
+        });
+    } catch (err) {
+        next(err);
+    }
+}

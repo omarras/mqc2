@@ -31,8 +31,6 @@ export async function screenshotCheck(
     mode = "desktopPair"
   } = options || {};
 
-  console.log(`${logPrefix} start`, JSON.stringify({ aemUrl, contentstackUrl, mode }));
-
   // Replication skip logic
   const lastReplicationDate = metadata.lastReplicationDate || null;
   const lastShotReplication = metadata.lastScreenshotReplicationDate || null;
@@ -40,7 +38,6 @@ export async function screenshotCheck(
   let skipAem = false;
   if (mode === "desktopPair" && lastReplicationDate && lastShotReplication) {
     if (String(lastReplicationDate) === String(lastShotReplication)) {
-      console.log("[screenshotCheck] Skipping AEM screenshot (lastReplicationDate unchanged)");
       skipAem = true;
     }
   }
@@ -120,7 +117,6 @@ export async function screenshotCheck(
           prepareForScreenshot(newPage, { imagesWaitMs, lazyScroll, waitNetworkIdle, networkIdleMs })
         ]);
 
-        console.log(`${logPrefix} taking screenshots`);
         const aemKey = screenshotKey(aemUrl, "aem-desktop");
         const csKey  = screenshotKey(contentstackUrl, "cs-desktop");
 

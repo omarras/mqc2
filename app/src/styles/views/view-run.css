@@ -15,7 +15,8 @@
 .acc-page-title {
     color: white;
     font-weight: 600;
-    font-size: 14px;
+    font-size: 15px;
+    line-height: 1.2;
 }
 
 .result-status {
@@ -28,6 +29,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 12px;
+    color: #454959;
 }
 
 .acc-urls {
@@ -184,15 +186,28 @@
 
     position: relative;
     display: grid;
-    gap: 12px 14px;
 
-    border: 1px solid var(--amber-600);
     border-radius: 14px;
-    padding: 14px 16px 16px;
-    margin: 16px 0 28px;
+    margin: 16px 0 24px;
 
-    background: linear-gradient(180deg, var(--amber-50), transparent 60%);
     backdrop-filter: saturate(105%);
+}
+
+/* --- Red alert variant (stopped / error) --- */
+.alert--bad{
+    --red-50:  rgba(239,68,68,0.08);
+    --red-200: #fecaca;
+    --red-300: #fca5a5;
+    --red-500: #ef4444;
+    --red-600: #dc2626;
+
+    border-color: var(--red-600);
+    background: linear-gradient(180deg, var(--red-50), transparent 60%);
+}
+
+.alert--bad .alert__title{
+    color: var(--red-200);
+    text-shadow: 0 1px 0 rgba(0,0,0,.35);
 }
 
 /* title & text */
@@ -203,6 +218,10 @@
     margin: 0 0 4px;
     color: var(--amber-200);
     text-shadow: 0 1px 0 rgba(0,0,0,.35);
+}
+
+.alert__text {
+    font-size: 14px;
 }
 
 .alert__item {
@@ -445,4 +464,476 @@
     transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .06s ease;
     -webkit-tap-highlight-color: transparent;
     appearance: none;
+}
+
+.page-analysis-top {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 2px;
+    margin-bottom: 16px;
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 12px;
+}
+
+/* Left + right must take equal space */
+.card-header__left,
+.card-header__right {
+    flex: 1;
+    display: flex;
+}
+
+/* Right side aligns button to the edge */
+.card-header__right {
+    justify-content: flex-end;
+}
+
+/* Title stays truly centered */
+.card-header__title {
+    flex: 0 0 auto;
+    text-align: center;
+}
+
+.translation_button {
+    background: transparent;
+    border: 2px solid #9e9e9e;
+    color: #fff;
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color .2s ease, border-color .2s ease, box-shadow .2s ease, transform .06s ease;
+    -webkit-tap-highlight-color: transparent;
+    appearance: none;
+}
+
+.group-title {
+    text-align: left;
+    margin: 40px 0 12px;
+}
+
+.group-pages {
+    text-align: left;
+    margin-left: 10px;
+}
+
+/* Run summary */
+.run-summary {
+    padding: 0 0 16px;
+}
+
+.summary-grid {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(140px, 1fr));
+    gap: 12px;
+}
+
+.kpi {
+    border-radius: 14px;
+    padding: 12px 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+    background: rgba(255,255,255,0.03);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-height: 72px;
+}
+
+.kpi__label {
+    font-size: 13px;
+    letter-spacing: 0.02em;
+    opacity: 0.8;
+    font-weight: 700;
+}
+
+.kpi__value {
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.1;
+}
+
+/* Subtle tint variants */
+.kpi--blue {
+    background: rgba(59, 130, 246, 0.10);
+    border-color: rgba(59, 130, 246, 0.22);
+}
+
+.kpi--yellow {
+    background: rgba(234, 179, 8, 0.10);
+    border-color: rgba(234, 179, 8, 0.24);
+}
+
+.kpi--green {
+    background: rgba(34, 197, 94, 0.10);
+    border-color: rgba(34, 197, 94, 0.22);
+}
+
+.kpi--red {
+    background: rgba(239, 68, 68, 0.10);
+    border-color: rgba(239, 68, 68, 0.22);
+}
+
+/* Make the filter row feel “designed” */
+.run-filters {
+    display: flex;
+    justify-content: center;
+    margin: 12px 0 18px;
+}
+
+.run-filters__inner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: min(980px, 100%);
+    padding: 0 4px;
+}
+
+/* Search is the hero */
+.search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 320px;
+}
+
+.search-icon {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    width: 18px;
+    height: 18px;
+    transform: translateY(-50%);
+    opacity: 0.75;
+    pointer-events: none;
+    fill: currentColor;
+}
+
+/* Input baseline */
+.input--search,
+.input--select {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--c-border);
+    background: var(--c-card);
+    color: inherit;
+    outline: none;
+}
+
+/* Search specifics */
+.input--search {
+    width: 100%;
+    padding-left: 40px; /* room for icon */
+    padding-right: 12px;
+    font-size: 14px;
+}
+
+.input--search::placeholder {
+    opacity: 0.55;           /* less in your face */
+    font-weight: 400;        /* not bold */
+}
+
+/* Hover/focus polish */
+.input--search:hover,
+.input--select:hover {
+    border-color: 1px solid var(--c-border);
+    background: var(--c-card);
+}
+
+.input--search:focus,
+.input--select:focus {
+    border-color: 1px solid var(--c-border); /* subtle “accent” focus */
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+    background: var(--c-card);
+}
+
+/* Select wrapper to position arrow */
+.select-wrap {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+/* Nice arrow (CSS triangle), consistent everywhere */
+.select-arrow {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    width: 0;
+    height: 0;
+    transform: translateY(-40%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid rgba(255,255,255,0.65);
+    pointer-events: none;
+}
+
+/* Closed select styling */
+.input--select {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--c-border);
+    background: var(--c-card);
+    color: inherit;
+    outline: none;
+
+    /* sizing */
+    min-width: 170px;
+    padding: 0 38px 0 12px; /* room for arrow */
+    font-size: 14px;
+    font-weight: 600;       /* slightly stronger label than placeholder */
+    letter-spacing: 0.01em;
+
+    /* remove native styling */
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+
+    /* optional: make it feel more “button-like” */
+    cursor: pointer;
+    transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+/* Hover/focus polish */
+.select-wrap:hover .input--select {
+    border-color: 1px solid var(--c-border);
+    background: var(--c-card);
+}
+
+.input--select:focus {
+    border-color: var(--c-card);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+    background: var(--c-card);
+}
+
+/* When disabled, if you ever use it */
+.input--select:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+
+/* If your browser shows an inner clear button for type=search, keep it tidy */
+.input--search::-webkit-search-cancel-button {
+    opacity: 0.7;
+}
+
+/* Responsive */
+@media (max-width: 980px) {
+    .summary-grid {
+        grid-template-columns: repeat(2, minmax(160px, 1fr));
+    }
+    .run-filters__inner {
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+    .search-wrap {
+        min-width: 260px;
+        flex-basis: 100%;
+    }
+    .input--select {
+        min-width: 200px;
+    }
+}
+
+/* Placeholder color (modern browsers) */
+.input--search::placeholder {
+    color: #454959;
+    font-weight: 400;
+}
+
+/* Safari / older WebKit */
+.input--search::-webkit-input-placeholder {
+    color: #454959;
+    opacity: 0.8
+}
+
+/* Firefox */
+.input--search::-moz-placeholder {
+    color: #454959;
+    opacity: 1
+}
+
+/* Edge / IE (mostly legacy, but safe) */
+.input--search:-ms-input-placeholder {
+    color: #454959;
+}
+
+.filter-wrap {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.filter-btn {
+    height: 44px;
+    border-radius: 12px;
+    border: 1px solid var(--c-border);
+    background: var(--c-card);
+    color: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 14px;
+    cursor: pointer;
+    transition: background .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+
+.filter-btn:hover {
+    border-color: var(--c-border);
+    background: var(--c-card);
+}
+
+.filter-btn.is-open {
+    border-color: var(--c-border);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+    background: var(--c-card);
+}
+
+.filter-icon {
+    width: 18px;
+    height: 18px;
+    opacity: 0.85;
+    fill: currentColor;
+}
+
+.filter-btn__text {
+    font-size: 14px;
+    font-weight: 600;
+    opacity: 0.9;
+}
+
+/* Popover panel */
+.filter-popover {
+    position: absolute;
+    right: 0;
+    top: calc(100% + 10px);
+    width: min(280px, 90vw);
+    border-radius: 14px;
+    border: 1px solid var(--c-border);
+    background: var(--c-card);
+    backdrop-filter: blur(10px);
+    box-shadow: 0 18px 60px rgba(0,0,0,0.45);
+    padding: 12px;
+    z-index: 50;
+}
+
+.filter-section {
+    padding: 8px 8px 10px;
+    text-align: left;
+}
+
+.filter-title {
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    opacity: 0.7;
+    font-weight: 700;
+    margin-bottom: 10px;
+}
+
+.filter-title-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+.filter-actions {
+    display: inline-flex;
+    gap: 10px;
+}
+
+.filter-link {
+    background: transparent;
+    border: 0;
+    color: inherit;
+    opacity: 0.75;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 0;
+}
+
+.filter-link:hover {
+    opacity: 1;
+    text-decoration: underline;
+}
+
+.filter-divider {
+    height: 1px;
+    background: var(--c-border);
+    margin: 6px 8px;
+}
+
+/* Status segmented buttons */
+.segmented {
+    display: flex;
+    gap: 8px;
+}
+
+.segmented__btn {
+    flex: 1;
+    height: 36px;
+    border-radius: 10px;
+    border: 1px solid var(--c-border);
+    background: var(--c-card);
+    color: inherit;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 700;
+    opacity: 0.9;
+    transition: background .15s ease, border-color .15s ease;
+}
+
+.segmented__btn:hover {
+    background: rgba(255,255,255,0.06);
+    border-color: rgba(255,255,255,0.18);
+}
+
+.segmented__btn.active {
+    border-color: rgba(99, 102, 241, 0.45);
+    background: rgba(99, 102, 241, 0.14);
+}
+
+/* Checkbox list */
+.filter-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 220px;
+    overflow: auto;
+    padding-right: 4px;
+}
+
+.check-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 10px;
+}
+
+.check-row:hover {
+    background: rgba(255,255,255,0.04);
+}
+
+.check-row input[type="checkbox"] {
+    margin-top: 2px;
+}
+
+.check-text {
+    font-size: 13px;
+    line-height: 1.2;
+    opacity: 0.92;
+}
+
+/* Optional overlay for click-outside close */
+.filter-overlay {
+    position: fixed;
+    inset: 0;
+    background: transparent;
+    z-index: 40;
 }

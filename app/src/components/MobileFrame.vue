@@ -1,9 +1,6 @@
 <!--src/components/MobileFrame.vue-->
 
 <template>
-  <div class="card">
-    <h2>Mobile View<br/><span class="diff-title">(Contentstack)</span></h2>
-
     <div class="device-wrapper"
          @click="$emit('open')"
          title="Open mobile preview">
@@ -42,8 +39,6 @@
         </div>
       </div>
     </div>
-
-  </div>
 </template>
 
 <script setup>

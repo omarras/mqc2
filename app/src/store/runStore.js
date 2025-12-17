@@ -61,14 +61,23 @@ export const useRunStore = defineStore("runStore", {
             //
             ev.addEventListener("row-update", (e) => {
                 const msg = JSON.parse(e.data);
+
+                console.log("[SSE row-update]", msg);
+
                 const { rowIndex, key, data } = msg;
 
-                // Ensure scan exists
                 const prev = this.scans[rowIndex] || { _id: rowIndex };
                 const next = { ...prev };
 
-                // Deep set allows screenshots.desktop and screenshots.mobile
                 deepSet(next, key, data);
+
+                console.log(
+                    "[STORE] after row-update",
+                    rowIndex,
+                    key,
+                    next.metadata?.dsStatus,
+                    next.dsStatusRaw
+                );
 
                 this.scans[rowIndex] = next;
             });
@@ -113,6 +122,10 @@ export const useRunStore = defineStore("runStore", {
                 this.scans[id] = {
                     ...(this.scans[id] || {}),
                     ...msg.data,
+                    metadata: {
+                        ...msg.data.metadata,
+                        dsStatus: this.scans[id]?.metadata?.dsStatus ?? msg.data.metadata?.dsStatus
+                    },
                     status: "completed"
                 };
             });

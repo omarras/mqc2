@@ -125,3 +125,32 @@ export function validateFetchCsvBody(body) {
 
     return { countryCode, businessUnit, locales, buCombined };
 }
+
+export function validateUpdateDsStatusBody(body) {
+    const dsStatus = body?.dsStatus;
+
+    if (typeof dsStatus !== "string" || !dsStatus.trim()) {
+        const err = new Error("dsStatus must be a non-empty string");
+        err.status = 400;
+        throw err;
+    }
+
+    // Strict allow-list for the "user workflow" statuses.
+    // You can relax this later if you want admins to set any DS status.
+    const allowed = new Set([
+        "Ready for UAT",
+        "UAT feedback provided",
+        "UAT approved"
+    ]);
+
+    const normalized = dsStatus.trim();
+    if (!allowed.has(normalized)) {
+        const err = new Error(
+            `dsStatus must be one of: ${Array.from(allowed).join(", ")}`
+        );
+        err.status = 400;
+        throw err;
+    }
+
+    return { dsStatus: normalized };
+}

@@ -18,12 +18,18 @@ const RunSchema = new mongoose.Schema(
             default: "pending"
         },
 
+        checkConfigSnapshot: {
+            type: Object, default: {}
+        },
+
         scans: [
             {
                 type: mongoose.Schema.Types.ObjectId,
                 ref: "Scan"
             }
         ],
+
+        submittedCount: { type: Number, default: 0 },
 
         totalScans: { type: Number, default: 0 },
 

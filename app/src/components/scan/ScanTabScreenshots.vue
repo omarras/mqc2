@@ -5,6 +5,7 @@ import Screenshots from "../Screenshots.vue";     // MQC1 desktop component (wit
 import MobileFrame from "../MobileFrame.vue";     // MQC1 phone frame
 import MobileModal from "../MobileModal.vue";     // MQC2/MQC1 mobile modal (you already have)
 import CompareModal from "../CompareModal.vue";   // your existing desktop compare modal
+import ReportDefectButton from "../ReportDefectButton.vue";
 
 const props = defineProps({
   scan: { type: Object, default: null }
@@ -129,38 +130,65 @@ function openMobile() {
 
 <template>
   <div>
-    <!-- MQC1 Desktop Visual Comparison -->
-    <Screenshots
-  :loading="desktopLoading"
-  :old-src="desktopOldSrc || ''"
-  :new-src="desktopNewSrc || ''"
-  :old-url="oldUrl || ''"
-  :new-url="newUrl || ''"
-  :pair="pair"
-  @compare="onCompare"
-/>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-header__left"></div>
 
+        <h2 class="card-header__title">
+          Visual Comparison
+        </h2>
 
-    <!-- MQC1 Mobile Frame + MQC2/MQC1 Mobile Modal -->
-    <MobileFrame
-        :src="mobileSrc || ''"
-        :loading="mobileLoading"
-        @open="openMobile"
-    />
+        <div class="card-header__right">
+          <ReportDefectButton :scan="scan" />
+        </div>
+      </div>
+      <!-- MQC1 Desktop Visual Comparison -->
+      <Screenshots
+          :loading="desktopLoading"
+          :old-src="desktopOldSrc || ''"
+          :new-src="desktopNewSrc || ''"
+          :old-url="oldUrl || ''"
+          :new-url="newUrl || ''"
+          :pair="pair"
+          @compare="onCompare"
+      />
+    </div>
 
-    <MobileModal
-        :open="mobileOpen"
-        :src="mobileSrc || ''"
-        :loading="mobileLoading"
-        @close="mobileOpen = false"
-    />
+    <div>
+      <div class="card">
+        <div class="card-header">
+          <div class="card-header__left"></div>
 
-    <!-- Desktop compare modal (side-by-side) -->
-    <CompareModal
-        :open="compareOpen"
-        :src-old="compareOld"
-        :src-new="compareNew"
-        @close="compareOpen = false"
-    />
+          <h2 class="card-header__title">
+            Mobile View<br/><span class="diff-title">(Contentstack)</span>
+          </h2>
+
+          <div class="card-header__right">
+            <ReportDefectButton :scan="scan" />
+          </div>
+        </div>
+        <!-- MQC1 Mobile Frame + MQC2/MQC1 Mobile Modal -->
+        <MobileFrame
+            :src="mobileSrc || ''"
+            :loading="mobileLoading"
+            @open="openMobile"
+        />
+
+        <MobileModal
+            :open="mobileOpen"
+            :src="mobileSrc || ''"
+            :loading="mobileLoading"
+            @close="mobileOpen = false"
+        />
+
+        <!-- Desktop compare modal (side-by-side) -->
+        <CompareModal
+            :open="compareOpen"
+            :src-old="compareOld"
+            :src-new="compareNew"
+            @close="compareOpen = false"
+        />
+      </div>
+    </div>
   </div>
 </template>

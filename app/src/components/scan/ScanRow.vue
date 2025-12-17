@@ -7,15 +7,18 @@ import ScanTabScreenshots from "./ScanTabScreenshots.vue";
 import ScanTabText from "./ScanTabText.vue";
 import ScanTabLinks from "./ScanTabLinks.vue";
 import ScanTabSeo from "./ScanTabSeo.vue";
+import DsStatusDropdown from "./DsStatusDropdown.vue";
 
 const emit = defineEmits(["toggle"]);
 
 const props = defineProps({
   scan: { type: Object, required: true },
   scanId: { type: String, default: "" },
+  runId: { type: String, required: true },
   open: { type: Boolean, default: false },
   index: { type: Number, default: -1 },
-  checkConfigSnapshot: { type: Object, default: null }
+  checkConfigSnapshot: { type: Object, default: null },
+  isAdmin: { type: Boolean, default: false }
 });
 
 const STATUS_LABELS = {
@@ -70,6 +73,36 @@ const metaPageDataCheck = computed(() =>
 const contentStackEditUrl = computed(() =>
     metadata.value?.contentStackUrl || null
 );
+const shouldContinue = computed(() => {
+  // backend truth, prefer scan.pageDataCheck, fallback metadata.pageDataCheck
+  return Boolean(
+      pageDataCheck.value?.shouldContinue ??
+      metaPageDataCheck.value?.shouldContinue ??
+      false
+  );
+});
+
+const stoppedReason = computed(() => {
+  // figure out the most likely reason based on status codes
+  const o = Number(oldHttpStatus.value);
+  const n = Number(newHttpStatus.value);
+
+  const isRedirect = (x) => Number.isFinite(x) && x >= 300 && x < 400;
+  const isBad = (x) => Number.isFinite(x) && x !== 200 && !isRedirect(x);
+
+  if (isRedirect(o) || isRedirect(n)) return "redirect";
+  if (isBad(o) || isBad(n)) return "unreachable";
+  return "unreachable";
+});
+
+const stoppedTitle = computed(() => "Analysis stopped early");
+
+const stoppedText = computed(() => {
+  if (stoppedReason.value === "redirect") {
+    return "We only ran the basic page check because one of the URLs redirected to a different page.";
+  }
+  return "We only ran the basic page check because one of the URLs could not be reached.";
+});
 
 function statusBadgeClass(s) {
   const v = String(s || "").toLowerCase();
@@ -92,13 +125,53 @@ function requestToggle() {
   emit("toggle", props.scanId);
 }
 
+const dsStatusRaw = computed(() =>
+    props.scan?.dsStatusRaw ??
+    props.scan?.metadata?.dsStatus ??
+    null
+);
+
+const uatStatus = computed(() =>
+    props.scan?.uatStatus ?? "unknown"
+);
+
+const uatStatusLabel = computed(() => {
+  const s = String(uatStatus.value || "").toLowerCase();
+
+  if (s === "ready") return "Ready for UAT";
+  if (s === "feedback") return "UAT feedback provided";
+  if (s === "approved") return "UAT approved";
+
+  // fallback: show what DS gave us
+  return dsStatusRaw.value || "DS status unknown";
+});
+
+function uatBadgeClass() {
+  const s = String(dsStatusRaw.value || "").trim().toLowerCase();
+
+  if (s.includes("uat approved")) return "badge badge--ok";        // green
+  if (s.includes("uat feedback")) return "badge badge--neutral";  // amber
+  if (s.includes("ready for uat")) return "badge badge--info";    // blue
+
+  return "badge badge--bad"; // unexpected DS state
+}
+
+function onSummaryClick(e) {
+  // If click originated from DS dropdown, do nothing
+  if (e.target.closest(".ds-dropdown")) {
+    return;
+  }
+
+  e.preventDefault();
+  requestToggle();
+}
 </script>
 
 <template>
   <details class="accordion" :open="open">
     <!-- CONTROLLED: prevent native toggle, delegate to parent -->
-    <summary class="acc-summary" @click.prevent="requestToggle">
-      <div class="acc-row">
+    <summary class="acc-summary" @click="onSummaryClick">
+    <div class="acc-row">
         <!-- LEFT: caret + content -->
         <div class="acc-title">
           <span class="acc-caret" :class="{ 'is-open': open }" aria-hidden="true">
@@ -114,7 +187,7 @@ function requestToggle() {
             </svg>
           </span>
           <span v-if="index >= 0" class="acc-idx mono muted" aria-hidden="true">
-            {{ index + 1 }}
+            {{ index }}
           </span>
 
           <div class="acc-main">
@@ -123,19 +196,37 @@ function requestToggle() {
             </div>
 
             <div class="acc-urls">
-              <a v-if="oldUrl" class="acc-url mono" target="_blank" :href="oldNoCacheUrl" @click.stop>{{ oldUrl }}</a>
+              <a v-if="oldUrl" class="acc-url mono muted" target="_blank" :href="oldNoCacheUrl" @click.stop>{{ oldUrl }}</a>
               <span v-else class="acc-url mono muted">—</span>
 
               <span class="acc-arrow">→</span>
 
-              <a v-if="newUrl" class="acc-url mono" target="_blank" :href="newNoCacheUrl" @click.stop>{{ newUrl }}</a>
+              <a v-if="newUrl" class="acc-url mono muted" target="_blank" :href="newNoCacheUrl" @click.stop>{{ newUrl }}</a>
             </div>
           </div>
         </div>
 
         <!-- RIGHT: status -->
         <div class="acc-chips" @click.stop>
-          <span class="result-status" :class="statusBadgeClass(status)">{{ statusLabel }}</span>
+          <!-- RIGHT: status -->
+          <div class="acc-chips" @click.stop>
+            <DsStatusDropdown
+                v-if="!props.isAdmin"
+                :scan="scan"
+                :run-id="runId"
+                :scan-id="scanId"
+                :badge-class="uatBadgeClass()"
+            />
+
+            <span
+                v-else
+                class="result-status"
+                :class="statusBadgeClass(status)"
+            >
+              {{ statusLabel }}
+            </span>
+            <slot name="adminActions" />
+          </div>
           <slot name="adminActions" />
         </div>
       </div>
@@ -143,39 +234,55 @@ function requestToggle() {
 
     <div class="segmented card" role="radiogroup" aria-label="Scan tabs">
       <div class="acc-content">
-        <!-- Overview -->
+        <!-- Overview always -->
         <div class="card" style="margin-top:12px;">
-          <ScanTabOverview :scan="scan" />
-        </div>
-
-        <!-- Scores -->
-        <div style="margin-top:12px;">
-          <ScanTabScores
+          <ScanTabOverview
               :scan="scan"
-              :check-config-snapshot="checkConfigSnapshot"
+              :run-id="props.runId"
+              :scan-id="scanId"
           />
         </div>
 
-        <!-- Screenshots -->
-        <div class="card" style="margin-top:12px;">
-          <ScanTabScreenshots :scan="scan" />
+        <!-- Everything else only if shouldContinue -->
+        <template v-if="shouldContinue">
+          <!-- Scores -->
+          <div style="margin-top:12px;">
+            <ScanTabScores
+                :scan="scan"
+                :check-config-snapshot="checkConfigSnapshot"
+            />
+          </div>
+
+          <!-- Screenshots -->
+          <div class="card" style="margin-top:12px;">
+            <ScanTabScreenshots :scan="scan" />
+          </div>
+
+          <!-- Text -->
+          <div v-if="checkConfigSnapshot?.text" class="card" style="margin-top:12px;">
+            <ScanTabText :scan="scan" />
+          </div>
+
+          <!-- Links -->
+          <div v-if="checkConfigSnapshot?.links" class="card" style="margin-top:12px;">
+            <ScanTabLinks :scan="scan" />
+          </div>
+
+          <!-- SEO -->
+          <div v-if="checkConfigSnapshot?.seo" class="card" style="margin-top:12px;">
+            <ScanTabSeo :scan="scan" />
+          </div>
+        </template>
+
+        <!-- Optional: a small note when checks are skipped -->
+        <div v-else class="alert alert--bad" style="margin-top:12px;">
+          <h3 class="alert__title">Analysis stopped early.</h3>
+
+          <p class="alert__text">
+            We couldn’t fully check this page because one of the URLs was not reachable, or it redirected to a different page.
+          </p>
         </div>
 
-        <!-- Text -->
-        <div v-if="checkConfigSnapshot?.text" class="card" style="margin-top:12px;">
-          <ScanTabText :scan="scan" />
-        </div>
-
-        <!-- Links -->
-        <div v-if="checkConfigSnapshot?.links" class="card" style="margin-top:12px;">
-          <ScanTabLinks :scan="scan" />
-        </div>
-
-
-        <!-- SEO -->
-        <div v-if="checkConfigSnapshot?.seo" class="card" style="margin-top:12px;">
-          <ScanTabSeo :scan="scan" />
-        </div>
       </div>
     </div>
   </details>

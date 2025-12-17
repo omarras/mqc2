@@ -1,6 +1,5 @@
 <script setup>
 import { ref, computed } from "vue";
-import RemarksBar from "./RemarksBar.vue";
 import { translateToEnglish } from "../utils/translate.js";
 
 const props = defineProps({
@@ -169,9 +168,6 @@ const visibleRows = computed(() =>
 </script>
 
 <template>
-  <h2>Text Comparison</h2>
-  <RemarksBar v-if="pair" :pair="pair" />
-
   <div v-if="loading" class="shot--placeholder" style="height:160px;">
     <div class="loader"></div>
     <div class="tiny muted">Loading diff…</div>
@@ -193,13 +189,16 @@ const visibleRows = computed(() =>
       <button
           v-if="!hasTranslation"
           @click="runTranslation"
+          class="translation_button"
           :disabled="translating"
+
       >
         {{ translating ? "Translating…" : "Translate to English" }}
       </button>
 
       <button
           v-if="hasTranslation && !translating"
+          class="translation_button"
           @click="showTranslation = !showTranslation"
       >
         {{ showTranslation ? "Show Original" : "Show English" }}

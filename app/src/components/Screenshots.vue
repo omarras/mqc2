@@ -55,9 +55,6 @@ const emit = defineEmits(['compare'])
 </script>
 
 <template>
-  <div class="card">
-    <h2>Visual Comparison</h2>
-
     <div class="screenshots-wrapper" :class="{ expanded }">
       <div class="grid grid-2">
 
@@ -181,7 +178,6 @@ const emit = defineEmits(['compare'])
         Side-by-Side Comparison
       </button>
     </div>
-  </div>
 
   <ZoomModal
       v-if="preview.open"

@@ -11,20 +11,40 @@ import {
 /**
  * Create a new scan entry for any run: single, bulk, fetch, rescan, rerun.
  */
+// src/services/scan.service.js
+
 export async function createScan({
-    runId,
-    urlOld,
-    urlNew,
-    metadata = {},
-    checkConfig = {},
-    parentScanId = null
-}) {
+                                     runId,
+                                     urlOld,
+                                     urlNew,
+                                     metadata = {},
+                                     checkConfig = null, // ✅ change default from {} to null
+                                     parentScanId = null
+                                 }) {
+    // ✅ If caller didn't pass a config (or passed empty {}), derive it from the run
+    let effectiveCheckConfig = checkConfig;
+
+    const isEmptyObject =
+        effectiveCheckConfig &&
+        typeof effectiveCheckConfig === "object" &&
+        !Array.isArray(effectiveCheckConfig) &&
+        Object.keys(effectiveCheckConfig).length === 0;
+
+    if (effectiveCheckConfig == null || isEmptyObject) {
+        const run = await Run.findById(runId).lean();
+        effectiveCheckConfig =
+            run?.checkConfigSnapshot ||
+            run?.checkConfig ||
+            run?.checks?.config ||
+            {};
+    }
+
     const scan = await Scan.create({
         runId,
         urlOld,
         urlNew,
         metadata,
-        checkConfig,
+        checkConfig: effectiveCheckConfig, // ✅ always persist something meaningful
         parentScanId,
         status: "pending",
         createdAt: new Date()

@@ -57,6 +57,9 @@ export function parseCSV(buffer) {
         const contentstackurl = pick(lowered, ["contentstackurl"]);
         const directionfinal = pick(lowered, ["directionfinal"]);
         const remarksds = pick(lowered, ["remarksds"]);
+        const approachcombined = pick(lowered, ["approachcombined"]);
+        const targettemplatecombined = pick(lowered, ["targettemplatecombined"]);
+        const dsstatus = pick(lowered, ["dsstatus"]);
         const lastreplicationdate = pick(lowered, ["lastreplicationdate"]);
 
         // 3. Build final row object for MQC2 bulk/fetch
@@ -66,6 +69,9 @@ export function parseCSV(buffer) {
             contentStackUrl: contentstackurl || "",
             directionFinal: directionfinal || "",
             remarksDS: remarksds || "",
+            approachCombined: approachcombined || "",
+            targetTemplateCombined: targettemplatecombined || "",
+            dsStatus: dsstatus || "",
             lastReplicationDate: lastreplicationdate || ""
         };
 
